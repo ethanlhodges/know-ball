@@ -542,50 +542,61 @@ app.get('/api/challenges/:code', (req, res) => {
 });
 
 // ==================== STATIC & DYNAMIC SHARE PAGES ====================
-app.use(express.static(PUBLIC_DIR));
+const RAW_GA_ID = (process.env.GA_MEASUREMENT_ID || '').trim();
+const GA_ID = /^G-[A-Z0-9]+$/i.test(RAW_GA_ID) ? RAW_GA_ID : '';
+
+function buildGaSnippet() {
+  if (!GA_ID) return '';
+  return `<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_ID}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>`;
+}
+
+function renderIndex({ title = null, ogMeta = '' } = {}) {
+  let html = INDEX_TEMPLATE().replace('<!--GA_SCRIPT-->', buildGaSnippet());
+  if (title) {
+    html = html.replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`);
+  }
+  return html.replace('<!--OG_META-->', ogMeta);
+}
+
+app.get('/', (_req, res) => {
+  res.send(renderIndex());
+});
+
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
 app.get('/r/:code', (req, res) => {
   const row = db.prepare(`SELECT * FROM runs WHERE short_code = ?`).get(req.params.code);
-  let html = INDEX_TEMPLATE();
-  if (row) {
-    const weeks = JSON.parse(row.weeks_json);
-    const sq = weeks.map(w => w.win ? '🟩' : '🟥').join('');
-    const hTag = (row.hints_used || 0) === 0 ? 'No Hints 🧠' : `${row.hints_used} Hint${row.hints_used === 1 ? '' : 's'} 💡`;
-    const title = `${row.wins}-${row.losses} (${row.avg_ppg.toFixed(1)} PPG) — KNOW BALL Fantasy Draft`;
-    const desc = `${row.display_name} drafted a ${row.wins}-${row.losses} ${row.scoring.toUpperCase()} squad (${row.opt_pct.toFixed(0)}% Optimal · ${hTag}) ${sq}`;
-    html = html
-      .replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`)
-      .replace('<!--OG_META-->', `
-        <meta property="og:title" content="${escapeAttr(title)}" />
-        <meta property="og:description" content="${escapeAttr(desc)}" />
-        <meta property="og:type" content="website" />
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="${escapeAttr(title)}" />
-        <meta name="twitter:description" content="${escapeAttr(desc)}" />
-      `);
-  }
-  res.send(html);
+  if (!row) return res.send(renderIndex());
+  const weeks = JSON.parse(row.weeks_json);
+  const sq = weeks.map(w => w.win ? '🟩' : '🟥').join('');
+  const hTag = (row.hints_used || 0) === 0 ? 'No Hints 🧠' : `${row.hints_used} Hint${row.hints_used === 1 ? '' : 's'} 💡`;
+  const title = `${row.wins}-${row.losses} (${row.avg_ppg.toFixed(1)} PPG) — KNOW BALL Fantasy Draft`;
+  const desc = `${row.display_name} drafted a ${row.wins}-${row.losses} ${row.scoring.toUpperCase()} squad (${row.opt_pct.toFixed(0)}% Optimal · ${hTag}) ${sq}`;
+  const ogMeta = `
+    <meta property="og:title" content="${escapeAttr(title)}" />
+    <meta property="og:description" content="${escapeAttr(desc)}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${escapeAttr(title)}" />
+    <meta name="twitter:description" content="${escapeAttr(desc)}" />`;
+  res.send(renderIndex({ title, ogMeta }));
 });
 
 app.get('/c/:code', (req, res) => {
   const ch = db.prepare(`
     SELECT r.display_name, c.scoring FROM challenges c JOIN runs r ON r.id = c.creator_run_id WHERE c.code = ?
   `).get(req.params.code);
-  let html = INDEX_TEMPLATE();
-  if (ch) {
-    const title = `${ch.display_name} challenged you on KNOW BALL!`;
-    const desc = `Draft the exact same 7 fantasy football spins (${ch.scoring.toUpperCase()}) and prove you know more ball than ${ch.display_name}.`;
-    html = html
-      .replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`)
-      .replace('<!--OG_META-->', `
-        <meta property="og:title" content="${escapeAttr(title)}" />
-        <meta property="og:description" content="${escapeAttr(desc)}" />
-        <meta property="og:type" content="website" />
-      `);
-  }
-  res.send(html);
+  if (!ch) return res.send(renderIndex());
+  const title = `${ch.display_name} challenged you on KNOW BALL!`;
+  const desc = `Draft the exact same 7 fantasy football spins (${ch.scoring.toUpperCase()}) and prove you know more ball than ${ch.display_name}.`;
+  const ogMeta = `
+    <meta property="og:title" content="${escapeAttr(title)}" />
+    <meta property="og:description" content="${escapeAttr(desc)}" />
+    <meta property="og:type" content="website" />`;
+  res.send(renderIndex({ title, ogMeta }));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🏈 KNOW BALL (Fantasy Draft) listening on http://0.0.0.0:${PORT} (DB: ${DB_PATH}, ${PLAYERS_COUNT} player-era entries)`);
+  console.log(`🏈 KNOW BALL (Fantasy Draft) listening on http://0.0.0.0:${PORT} (DB: ${DB_PATH}, ${PLAYERS_COUNT} player-era entries, GA4: ${GA_ID || 'off'})`);
 });

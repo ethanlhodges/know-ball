@@ -130,6 +130,9 @@ function hashString(str) {
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
+function trackEvent(name, params = {}) {
+  try { if (typeof window.gtag === 'function') window.gtag('event', name, params); } catch (_) {}
+}
 
 // ==================== STATE ====================
 const state = {
@@ -589,6 +592,13 @@ function buildRealWeeklySim() {
 async function finishAndPersistDraft() {
   const sim = buildRealWeeklySim();
   state.lastSim = sim;
+  trackEvent('draft_completed', {
+    mode: state.mode,
+    wins: sim.wins,
+    avg_ppg: Math.round(sim.avgPPG * 10) / 10,
+    hints_used: state.hintsUsed,
+    stack_bonus: sim.stackBonus,
+  });
 
   // Save to SQLite backend in parallel with the live 17-week animation!
   const payload = {
@@ -1144,6 +1154,7 @@ function flashToast(msg = 'Copied!') {
 
 function copyShareLink() {
   const url = state.lastSavedCode ? `${window.location.origin}/r/${state.lastSavedCode}` : window.location.href;
+  trackEvent('share_clicked', { method: 'link', mode: state.mode });
   navigator.clipboard.writeText(url).then(() => flashToast('Share link copied!'));
 }
 
@@ -1162,6 +1173,7 @@ function copyShareCard() {
     sq,
     link || null,
   ].filter(Boolean).join('\n');
+  trackEvent('share_clicked', { method: 'text', mode: state.mode });
   navigator.clipboard.writeText(text).then(() => flashToast('Text card copied!'));
 }
 
@@ -1170,6 +1182,7 @@ async function createChallengeLink() {
   try {
     const res = await api('/api/challenges', { method: 'POST', body: JSON.stringify({ shortCode: state.lastSavedCode }) });
     const url = `${window.location.origin}/c/${res.code}`;
+    trackEvent('share_clicked', { method: 'challenge', mode: state.mode });
     await navigator.clipboard.writeText(url);
     flashToast('1v1 Challenge link copied!');
   } catch (err) { flashToast(err.message); }

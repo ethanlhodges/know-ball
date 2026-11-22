@@ -57,7 +57,7 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     }
     srv = spawn('node', ['--no-warnings=ExperimentalWarning', 'src/server.js'], {
       cwd: path.join(__dirname, '..'),
-      env: { ...process.env, PORT: String(TEST_PORT), DB_PATH: TEST_DB },
+      env: { ...process.env, PORT: String(TEST_PORT), DB_PATH: TEST_DB, GA_MEASUREMENT_ID: 'G-TEST12345' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     for (let i = 0; i < 40; i++) {
@@ -77,10 +77,12 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     }
   });
 
-  it('serves /api/health and /api/players', async () => {
+  it('serves /api/health, /api/players, and injects GA4 gtag on /', async () => {
     const h = await (await fetch(`${BASE}/api/health`)).json();
     assert.equal(h.ok, true);
     assert.ok(h.players > 3000);
+    const home = await (await fetch(`${BASE}/`)).text();
+    assert.ok(home.includes('googletagmanager.com/gtag/js?id=G-TEST12345'));
   });
 
   it('persists anonymous runs in Half-PPR, tracks hints, and preserves exact draft round order', async () => {
