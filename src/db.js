@@ -60,6 +60,7 @@ db.exec(`
     opt_pct REAL NOT NULL,
     weeks_json TEXT NOT NULL,
     challenge_code TEXT,
+    hints_used INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
@@ -92,6 +93,12 @@ db.exec(`
     FOREIGN KEY (creator_run_id) REFERENCES runs(id) ON DELETE CASCADE
   );
 `);
+
+// Safe migration for existing SQLite volumes created before hints_used existed
+const runCols = db.prepare(`PRAGMA table_info(runs)`).all().map(c => c.name);
+if (!runCols.includes('hints_used')) {
+  db.exec(`ALTER TABLE runs ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0`);
+}
 
 // Periodic cleanup of expired sessions on startup
 db.prepare(`DELETE FROM sessions WHERE expires_at <= datetime('now')`).run();

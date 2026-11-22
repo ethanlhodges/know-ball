@@ -161,6 +161,8 @@ const state = {
   simTimer: null,
   waitingForWelcome: false,
   authMode: 'login',
+  hintedRounds: new Set(),
+  hintsUsed: 0,
 };
 
 const getSeasonPPG = (s) => s[state.scoring];
@@ -291,6 +293,8 @@ function startDraft(mode = state.mode, opts = {}) {
   state.lastSim = null;
   state.lastSavedCode = null;
   state.lastCrowd = null;
+  state.hintedRounds = new Set();
+  state.hintsUsed = 0;
 
   document.getElementById('draftConsole').classList.remove('hidden');
   document.getElementById('simStage').classList.add('hidden');
@@ -603,6 +607,7 @@ async function finishAndPersistDraft() {
     optPct: sim.optPct,
     weeks: sim.weeks,
     challengeCode: state.challengeCode,
+    hintsUsed: state.hintsUsed,
   };
 
   api('/api/runs', { method: 'POST', body: JSON.stringify(payload) })
@@ -786,6 +791,15 @@ function playSeasonSim(sim, instant = false) {
       tag.textContent = "DOESN'T KNOW BALL";
       tag.className = 'px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30';
       verdict.textContent = 'Rough week — run it back!';
+    }
+    const hPill = document.getElementById('hintsUsedPill');
+    hPill.classList.remove('hidden');
+    if (state.hintsUsed === 0) {
+      hPill.textContent = '🧠 Pure · No Hints';
+      hPill.className = 'px-2 py-0.5 rounded text-xs font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+    } else {
+      hPill.textContent = `💡 ${state.hintsUsed} Hint${state.hintsUsed === 1 ? '' : 's'}`;
+      hPill.className = 'px-2 py-0.5 rounded text-xs font-black bg-amber-500/15 text-amber-300 border border-amber-500/30';
     }
     renderCrowdOverlay();
   }
@@ -994,6 +1008,10 @@ function toggleHint() {
   drawer.classList.toggle('hidden');
   document.getElementById('btnRevealPool').classList.toggle('hidden', state.mode !== 'unlimited');
   if (!drawer.classList.contains('hidden')) {
+    if (!state.hintedRounds.has(state.round)) {
+      state.hintedRounds.add(state.round);
+      state.hintsUsed = state.hintedRounds.size;
+    }
     const spin = state.spins[state.round];
     const pool = POOL_MAP.get(`${spin.teamIdx}-${spin.eraIdx}`) || [];
     const open = getEligiblePositions(), cfg = SCORE_CONFIG[state.scoring];
@@ -1030,6 +1048,7 @@ async function openLeaderboard() {
             <span class="w-6 font-black tabular text-[var(--muted-foreground)]">#${i + 1}</span>
             <span class="font-bold truncate">${r.isAccount ? '@' : ''}${escapeHtml(r.displayName)}</span>
             <span class="text-[11px] font-mono text-[var(--muted-foreground)]">${r.grades.join('')}</span>
+            <span class="text-[11px] font-bold ${r.hintsUsed === 0 ? 'text-emerald-400' : 'text-amber-400'}" title="${r.hintsUsed === 0 ? 'Pure (No Hints)' : `${r.hintsUsed} hint(s) used`}">${r.hintsUsed === 0 ? '🧠' : `💡${r.hintsUsed}`}</span>
           </div>
           <div class="flex items-center gap-2.5 shrink-0 tabular">
             <span class="font-black ${r.wins === 17 ? 'text-amber-400' : 'text-emerald-400'}">${r.wins}-${r.losses}</span>
@@ -1071,6 +1090,7 @@ async function openHOF() {
               <span class="font-black text-sm tabular ${s.wins === 17 ? 'text-amber-400' : 'text-emerald-400'}">${s.wins}-${s.losses}</span>
               <span class="font-bold tabular">${s.avgPPG.toFixed(1)} PPG</span>
               ${s.stackBonus > 0 ? `<span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold text-[11px]">⚡ +${s.stackBonus.toFixed(1)}</span>` : ''}
+              <span class="text-[11px] font-bold ${(s.hintsUsed || 0) === 0 ? 'text-emerald-400' : 'text-amber-400'}">${(s.hintsUsed || 0) === 0 ? '🧠 Pure' : `💡 ${s.hintsUsed}`}</span>
             </div>
             <span class="text-[var(--muted-foreground)]">${s.mode} · ${s.scoring.toUpperCase()} · ${s.boardDate}</span>
           </div>
@@ -1120,10 +1140,11 @@ function copyShareCard() {
   const tag = state.mode === 'daily' ? `Daily ${getTodayUTC()}` : 'Unlimited';
   const sq = sim.weeks.map(w => w.win ? '🟩' : '🟥').join('');
   const grades = state.picksByRound.map(p => p.grade).join('');
+  const hTag = state.hintsUsed === 0 ? 'No Hints 🧠' : `${state.hintsUsed} Hint${state.hintsUsed === 1 ? '' : 's'} 💡`;
   const link = state.lastSavedCode ? `${window.location.origin}/r/${state.lastSavedCode}` : '';
   const text = [
     `🏈 KNOW BALL — Fantasy Draft (${tag} · ${SCORE_CONFIG[state.scoring].name})`,
-    `Record: ${sim.wins}-${sim.losses} | ${sim.avgPPG.toFixed(1)} PPG (${sim.optPct.toFixed(0)}% Optimal) | Grades: ${grades}`,
+    `Record: ${sim.wins}-${sim.losses} | ${sim.avgPPG.toFixed(1)} PPG (${sim.optPct.toFixed(0)}% Optimal) | ${hTag} | Grades: ${grades}`,
     sim.stackBonus > 0 ? `⚡ Stack Bonus: +${sim.stackBonus.toFixed(1)} PPG/wk` : null,
     sq,
     link || null,
@@ -1148,6 +1169,7 @@ function displaySavedRun(run, crowd, bannerMsg = null) {
   state.spins = run.spins;
   state.roster = run.roster;
   state.slotGrades = run.grades;
+  state.hintsUsed = run.hintsUsed || 0;
   state.round = 7;
   state.lastSavedCode = run.shortCode;
   state.lastCrowd = crowd;
