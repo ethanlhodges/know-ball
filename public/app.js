@@ -1163,14 +1163,36 @@ function displaySavedRun(run, crowd, bannerMsg = null) {
   state.scoring = run.scoring;
   state.spins = run.spins;
   state.roster = run.roster;
-  state.slotGrades = run.grades;
+  state.slotGrades = new Array(7).fill('A');
   state.hintsUsed = run.hintsUsed || 0;
   state.round = 7;
   state.lastSavedCode = run.shortCode;
   state.lastCrowd = crowd;
-  state.picksByRound = run.spins.map((spin, i) => ({
-    spin, player: run.roster[i], slotIdx: i, grade: run.grades[i] || 'A'
-  }));
+
+  // Map each draft round (0..6) to the actual player drafted in that round & their lineup slot
+  const usedSlots = new Set();
+  state.picksByRound = run.spins.map((spin, rIdx) => {
+    const pk = run.picksByRound && run.picksByRound[rIdx];
+    let slotIdx = -1;
+    if (pk) {
+      slotIdx = run.roster.findIndex((p, sIdx) =>
+        !usedSlots.has(sIdx) && p && p.name === pk.playerName && p.year === pk.playerYear
+      );
+    }
+    if (slotIdx === -1) {
+      slotIdx = run.roster.findIndex((p, sIdx) =>
+        !usedSlots.has(sIdx) && p && p.teamIdx === spin.teamIdx && p.eraIdx === spin.eraIdx
+      );
+    }
+    if (slotIdx === -1) {
+      slotIdx = run.roster.findIndex((_, sIdx) => !usedSlots.has(sIdx));
+    }
+    usedSlots.add(slotIdx);
+    const grade = (run.grades && run.grades[rIdx]) || 'A';
+    if (slotIdx >= 0) state.slotGrades[slotIdx] = grade;
+    return { spin, player: run.roster[slotIdx], slotIdx, grade };
+  });
+
   const optimal = computeOptimalLineup(run.spins);
   state.lastSim = {
     wins: run.wins, losses: run.losses, avgPPG: run.avgPPG, basePPG: run.basePPG,

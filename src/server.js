@@ -51,6 +51,13 @@ function getTodayUTC() {
 
 function hydrateRun(row) {
   if (!row) return null;
+  const pickRows = db.prepare(`
+    SELECT round_idx, team_id, era_label, player_name, player_year, pos
+    FROM run_picks
+    WHERE run_id = ?
+    ORDER BY round_idx ASC
+  `).all(row.id);
+
   return {
     shortCode: row.short_code,
     displayName: row.display_name,
@@ -61,6 +68,14 @@ function hydrateRun(row) {
     spins: JSON.parse(row.spins_json),
     roster: JSON.parse(row.roster_json),
     grades: JSON.parse(row.grades_json),
+    picksByRound: pickRows.map(p => ({
+      roundIdx: p.round_idx,
+      teamId: p.team_id,
+      eraLabel: p.era_label,
+      playerName: p.player_name,
+      playerYear: p.player_year,
+      pos: p.pos,
+    })),
     wins: row.wins,
     losses: row.losses,
     avgPPG: row.avg_ppg,
