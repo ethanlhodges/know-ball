@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KNOW BALL — All-Time Fantasy Football Draft</title>
+  <!--OG_META-->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0b0f17;
+      --card: #131a26;
+      --content: #1a2333;
+      --border: #263248;
+      --foreground: #f1f5f9;
+      --muted-foreground: #94a3b8;
+      --placeholder: #64748b;
+      --primary: #10b981;
+      --primary-foreground: #022c22;
+      --link: #38bdf8;
+    }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .turf-field {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 48px, rgba(0,0,0,0.045) 48px, rgba(0,0,0,0.045) 96px),
+        linear-gradient(180deg, #0d3b22 0%, #124c2c 50%, #0d3b22 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .turf-lines {
+      background-image: linear-gradient(to bottom, rgba(255,255,255,0.13) 1px, transparent 1px);
+      background-size: 100% 25%;
+    }
+    @keyframes reelLock {
+      0% { transform: translateY(-8px) scale(0.97); }
+      60% { transform: translateY(3px) scale(1.015); }
+      100% { transform: translateY(0) scale(1); }
+    }
+    .reel-lock { animation: reelLock 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    @keyframes cardSnap {
+      0% { opacity: 0; transform: scale(0.72) translateY(-14px); }
+      70% { opacity: 1; transform: scale(1.06) translateY(2px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .card-snap { animation: cardSnap 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 6px) scale(0.9); }
+      20% { opacity: 1; transform: translate(-50%, -6px) scale(1.06); }
+      80% { opacity: 1; transform: translate(-50%, -18px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -28px) scale(0.96); }
+    }
+    .float-pop { animation: floatUp 1.5s ease-out forwards; }
+    @keyframes confettiDrop {
+      0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(300px) rotate(540deg); opacity: 0; }
+    }
+    .confetti-bit {
+      position: absolute; top: 0; width: 7px; height: 11px; border-radius: 2px;
+      animation: confettiDrop 1.7s cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+      pointer-events: none;
+    }
+    @keyframes pulseSlot {
+      0%, 100% { border-color: rgba(255,255,255,0.26); }
+      50% { border-color: rgba(255,255,255,0.62); }
+    }
+    .slot-open-glow { animation: pulseSlot 2.2s ease-in-out infinite; }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen">
+  <div class="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-4">
+
+    <!-- Broadcast Header -->
+    <header class="flex flex-wrap items-center justify-between gap-2.5">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <div class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-base tracking-tight shadow-sm group-hover:bg-emerald-500 transition">
+          KNOW BALL
+        </div>
+        <div class="leading-tight">
+          <h1 class="text-sm sm:text-base font-extrabold tracking-tight">ALL-TIME FANTASY DRAFT</h1>
+          <div class="text-xs text-[var(--muted-foreground)]" id="headerSub">Chase 17-0 · Loading players...</div>
+        </div>
+      </a>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <div class="inline-flex rounded-lg border border-[var(--border)] bg-[var(--card)] p-0.5 text-xs">
+          <button id="btnModeDaily" class="px-2.5 py-1 rounded-md font-bold transition cursor-pointer">Daily</button>
+          <button id="btnModeUnlimited" class="px-2.5 py-1 rounded-md font-bold transition cursor-pointer">Unlimited</button>
+        </div>
+
+        <div class="inline-flex rounded-lg border border-[var(--border)] bg-[var(--card)] p-0.5 text-xs">
+          <button data-score="ppr" class="score-btn px-2 py-1 rounded-md font-bold transition cursor-pointer">PPR</button>
+          <button data-score="half" class="score-btn px-2 py-1 rounded-md font-bold transition cursor-pointer">Half</button>
+          <button data-score="std" class="score-btn px-2 py-1 rounded-md font-bold transition cursor-pointer">Std</button>
+        </div>
+
+        <button id="btnLeaderboard" class="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-bold transition cursor-pointer" title="Today's Leaderboard & Pick Rates">
+          📊 Daily
+        </button>
+        <button id="btnHOF" class="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-bold transition cursor-pointer flex items-center gap-1" title="Your Career & Hall of Fame">
+          <span>🏆</span>
+          <span id="hofBadgeCount" class="tabular">0</span>
+        </button>
+        <button id="btnAccount" class="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-bold transition cursor-pointer">
+          Sign In
+        </button>
+        <button id="btnSound" class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-semibold transition cursor-pointer">
+          🔊
+        </button>
+        <button id="btnHelp" class="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-semibold transition cursor-pointer">
+          ?
+        </button>
+      </div>
+    </header>
+
+    <!-- Context Banner (for /r/:code shared runs or /c/:code friend challenges) -->
+    <div id="contextBanner" class="hidden rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+      <div id="contextBannerText" class="font-bold text-sky-200"></div>
+      <div class="flex items-center gap-2">
+        <button id="btnContextAction" class="px-3 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-black cursor-pointer">Play Today’s Daily</button>
+      </div>
+    </div>
+
+    <!-- ==================== ACTIVE DRAFT CONSOLE ==================== -->
+    <section id="draftConsole" class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="font-black uppercase tracking-wider text-emerald-400" id="roundBanner">PICK 1 OF 7</span>
+          <span class="text-[var(--muted-foreground)]">·</span>
+          <span class="text-[var(--muted-foreground)]" id="needSummary">Need QB, 2 RB, 2 WR, TE, FLEX</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="stackAlertPill" class="hidden px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black">⚡ STACK OPPORTUNITY!</span>
+          <div id="roundPips" class="flex items-center gap-1"></div>
+        </div>
+      </div>
+
+      <!-- Slot Machine Reels -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
+        <div class="sm:col-span-7 flex flex-col gap-2">
+          <div id="teamReel" class="flex-1 rounded-xl border border-black/15 p-3.5 sm:p-4 flex items-center gap-3.5 shadow-inner transition-colors duration-200 min-h-[84px]">
+            <div id="teamAbbrev" class="w-14 h-14 rounded-lg bg-black/20 backdrop-blur-sm flex items-center justify-center font-black text-xl tracking-tight shrink-0 border border-white/15">
+              NFL
+            </div>
+            <div class="min-w-0">
+              <div class="text-[11px] font-bold uppercase tracking-widest opacity-80">FRANCHISE</div>
+              <div id="teamFullName" class="text-lg sm:text-xl font-black tracking-tight leading-tight truncate">Loading...</div>
+              <div id="teamNote" class="text-xs opacity-80 truncate"></div>
+            </div>
+          </div>
+          <button id="btnRerollTeam" class="w-full py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--background)] text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+            <span>↻ Reroll Franchise</span>
+            <span id="rerollTeamLeft" class="px-1.5 py-0.2 rounded bg-[var(--card)] border border-[var(--border)] tabular">1</span>
+          </button>
+        </div>
+
+        <div class="sm:col-span-5 flex flex-col gap-2">
+          <div id="eraReel" class="flex-1 rounded-xl border border-[var(--border)] bg-[var(--content)] p-3.5 sm:p-4 flex flex-col justify-center min-h-[84px]">
+            <div class="text-[11px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">5-YEAR WINDOW</div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span id="eraMain" class="text-2xl sm:text-3xl font-black tracking-tight tabular">—</span>
+            </div>
+            <div id="eraSub" class="text-xs text-[var(--muted-foreground)] mt-0.5">Pick player + exact season</div>
+          </div>
+          <button id="btnRerollEra" class="w-full py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--background)] text-xs font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+            <span>↻ Reroll Window</span>
+            <span id="rerollEraLeft" class="px-1.5 py-0.2 rounded bg-[var(--card)] border border-[var(--border)] tabular">1</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Command Search Picker -->
+      <div id="searchWrap" class="relative space-y-1.5">
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <input
+              id="playerSearch"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Type a player name to draft..."
+              class="w-full px-4 py-3 rounded-xl border-2 border-[var(--border)] bg-[var(--background)] text-sm font-medium text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:outline-none focus:border-emerald-500 transition"
+            />
+          </div>
+          <button id="btnHint" class="px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--background)] text-xs font-bold transition cursor-pointer shrink-0">
+            Hint
+          </button>
+        </div>
+
+        <div id="hintDrawer" class="hidden rounded-xl border border-[var(--border)] bg-[var(--content)] px-3.5 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+          <div id="hintPills" class="flex flex-wrap items-center gap-1.5"></div>
+          <button id="btnRevealPool" class="text-[var(--link)] hover:underline font-bold cursor-pointer">Browse eligible pool</button>
+        </div>
+
+        <div id="searchDropdown" class="hidden absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] divide-y divide-[var(--border)] shadow-2xl"></div>
+      </div>
+
+      <!-- Inline Season Picker -->
+      <div id="yearPickerWrap" class="hidden rounded-xl border-2 border-emerald-500/60 bg-[var(--content)] p-3.5 space-y-3 card-snap">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="ypPosChip" class="px-2 py-0.5 rounded text-xs font-black">RB</span>
+            <span id="ypPlayerName" class="text-sm font-black truncate">Player</span>
+            <span class="text-xs text-[var(--muted-foreground)] hidden sm:inline">— pick the exact season:</span>
+          </div>
+          <button id="btnCancelYear" class="px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--background)] text-xs font-bold cursor-pointer shrink-0">
+            ← Change
+          </button>
+        </div>
+        <div id="yearButtons" class="flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+
+    <!-- ==================== LIVE 17-WEEK SIMULATOR & RESULTS ==================== -->
+    <section id="simStage" class="hidden bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm relative overflow-hidden">
+      <div id="confettiHost" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+      <!-- 1v1 Challenge Head-to-Head Card (only shown when finishing a /c/:code challenge) -->
+      <div id="h2hBanner" class="hidden rounded-xl border border-amber-400/40 bg-amber-500/10 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div id="h2hSummary" class="font-bold"></div>
+        <div id="h2hVerdict" class="px-2.5 py-1 rounded-lg font-black text-xs"></div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="simStatusTag" class="px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              PLAYING REAL WEEKLY LOGS...
+            </span>
+            <span id="dailyPercentilePill" class="hidden px-2 py-0.5 rounded text-xs font-black bg-sky-500/15 text-sky-300 border border-sky-500/30"></span>
+            <button id="btnSkipSim" class="text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline cursor-pointer">Skip</button>
+          </div>
+          <div class="flex items-baseline gap-3 mt-1.5">
+            <span id="simRecord" class="text-5xl font-black tracking-tight tabular">0-0</span>
+            <span id="simVerdict" class="text-sm font-bold text-[var(--muted-foreground)]">Kickoff!</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] px-3 py-2 text-center">
+            <div class="text-[11px] font-bold uppercase text-[var(--muted-foreground)]">Avg PPG</div>
+            <div id="simPPG" class="text-lg font-black tabular">0.0</div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] px-3 py-2 text-center">
+            <div class="text-[11px] font-bold uppercase text-[var(--muted-foreground)]">Optimal</div>
+            <div id="simOptPct" class="text-lg font-black tabular">—</div>
+          </div>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] px-3 py-2 text-center">
+            <div class="text-[11px] font-bold uppercase text-[var(--muted-foreground)]">Stacks</div>
+            <div id="simStackBonus" class="text-lg font-black tabular text-amber-400">+0.0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Matchup Ticker + Weekly Box Score -->
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3.5 space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold tabular">
+          <div class="flex items-center gap-2">
+            <span id="tickerWeek" class="font-black text-[var(--foreground)]">WEEK 1</span>
+            <span id="tickerOppName" class="text-[var(--muted-foreground)]">vs. 4th &amp; Inches</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="tickerScore" class="font-black text-sm">0.0 – 0.0</span>
+            <span id="tickerOutcome" class="px-2 py-0.5 rounded font-black">—</span>
+          </div>
+        </div>
+        <div id="weekBoxScore" class="flex flex-wrap gap-1.5 text-[11px] tabular"></div>
+      </div>
+
+      <div id="weekGrid" class="grid grid-cols-9 sm:grid-cols-[repeat(17,minmax(0,1fr))] gap-1"></div>
+
+      <!-- Post-Sim Actions, Crowd Pick Rates & Optimal Comparison -->
+      <div id="postSimWrap" class="hidden space-y-4 pt-2 border-t border-[var(--border)]">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnCopyLink" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer">
+            Copy Share Link
+          </button>
+          <button id="btnCopyShare" class="px-3.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--background)] text-xs font-bold transition cursor-pointer">
+            Copy Text Card
+          </button>
+          <button id="btnChallengeFriend" class="px-3.5 py-2 rounded-xl border border-amber-400/40 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold transition cursor-pointer">
+            ⚔️ Challenge a Friend
+          </button>
+          <button id="btnRunBack" class="px-3.5 py-2 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:bg-[var(--background)] text-xs font-bold transition cursor-pointer">
+            Play Unlimited
+          </button>
+          <span id="copyToast" class="hidden text-xs font-bold text-emerald-400">Copied!</span>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">Your Picks · Crowd Pick % · Optimal Board</span>
+            <span id="optimalMaxLabel" class="font-bold tabular">Max: —</span>
+          </div>
+          <div id="optimalList" class="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--content)] px-3.5 text-xs"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== THE FOOTBALL FIELD ==================== -->
+    <section class="turf-field rounded-2xl border border-emerald-950/60 shadow-lg text-white">
+      <div class="turf-lines p-4 sm:p-5 space-y-4 relative">
+        <div class="pointer-events-none select-none absolute inset-y-0 left-3 flex flex-col justify-between py-4 text-[11px] font-black tracking-widest text-white/15">
+          <span>20</span><span>30</span><span>40</span>
+        </div>
+        <div class="pointer-events-none select-none absolute inset-y-0 right-3 flex flex-col justify-between py-4 text-[11px] font-black tracking-widest text-white/15">
+          <span>20</span><span>30</span><span>40</span>
+        </div>
+
+        <div id="fieldPopAnchor" class="pointer-events-none absolute top-1/2 left-1/2 z-20"></div>
+
+        <!-- Line of Scrimmage -->
+        <div class="flex items-center gap-2 px-1 relative z-10">
+          <div class="h-0.5 flex-1 bg-sky-400/75 rounded-full"></div>
+          <span class="text-[11px] font-black uppercase tracking-widest text-sky-200">Line of Scrimmage</span>
+          <div class="h-0.5 flex-1 bg-sky-400/75 rounded-full"></div>
+        </div>
+
+        <!-- Row 1: WR1, FLEX, TE, WR2 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 relative z-10">
+          <div id="slot-3"></div>
+          <div id="slot-6"></div>
+          <div id="slot-5"></div>
+          <div id="slot-4"></div>
+        </div>
+
+        <!-- Backfield Divider -->
+        <div class="flex items-center gap-2 px-6 relative z-10">
+          <div class="h-px flex-1 bg-white/15"></div>
+          <span class="text-[11px] font-bold uppercase tracking-widest text-white/45">Backfield</span>
+          <div class="h-px flex-1 bg-white/15"></div>
+        </div>
+
+        <!-- Row 2: RB1, QB, RB2 -->
+        <div class="grid grid-cols-3 gap-2.5 sm:gap-3 max-w-2xl mx-auto relative z-10">
+          <div id="slot-1"></div>
+          <div id="slot-0"></div>
+          <div id="slot-2"></div>
+        </div>
+
+        <!-- Scoreboard Bar -->
+        <div class="pt-1 relative z-10">
+          <div class="rounded-xl bg-black/35 backdrop-blur-sm border border-white/15 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-white/70">Lineup</span>
+                <span id="fieldTotalPPG" class="text-xl font-black tabular text-white">0.0</span>
+                <span id="fieldScoringTag" class="text-xs font-semibold text-emerald-300">PPR</span>
+              </div>
+              <span id="fieldStackBadge" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-black text-[11px] font-black">
+                ⚡ +0.0 STACK
+              </span>
+            </div>
+            <div class="flex-1 min-w-[160px] max-w-xs space-y-1">
+              <div class="flex justify-between text-[11px] font-bold text-white/75 tabular">
+                <span>17-0 Contender Pace</span>
+                <span id="fieldTargetLabel">155+ PPG</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-white/15 overflow-hidden">
+                <div id="fieldTargetBar" class="h-full rounded-full bg-amber-400 transition-all duration-300" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player Stat Inspector Strip -->
+    <div id="inspectorBar" class="hidden rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+      <div id="inspectorText" class="font-medium"></div>
+      <button id="btnCloseInspector" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-bold cursor-pointer">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Daily Leaderboard & Crowd Picks Modal -->
+  <div id="lbModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl max-h-[86vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-black tracking-tight">📊 Today’s Daily Leaderboard</h2>
+          <div id="lbSub" class="text-xs text-[var(--muted-foreground)]">Loading...</div>
+        </div>
+        <button id="btnCloseLB" class="px-2.5 py-1 rounded-lg bg-[var(--content)] text-xs font-bold cursor-pointer">Close</button>
+      </div>
+      <div id="lbSummaryGrid" class="grid grid-cols-4 gap-2 text-center"></div>
+      <div id="lbLeaders" class="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--content)] px-3.5 text-xs"></div>
+      <div class="space-y-2">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">Most Picked Players Today</div>
+        <div id="lbPopular" class="space-y-1.5 text-xs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Career & Hall of Fame Modal -->
+  <div id="hofModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-black tracking-tight">🏆 Career &amp; Hall of Fame</h2>
+        <button id="btnCloseHOF" class="px-2.5 py-1 rounded-lg bg-[var(--content)] text-xs font-bold cursor-pointer">Close</button>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-center">
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-2.5">
+          <div class="text-[11px] text-[var(--muted-foreground)] font-bold">17-0s</div>
+          <div id="statPerfects" class="text-xl font-black tabular text-amber-400">0</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-2.5">
+          <div class="text-[11px] text-[var(--muted-foreground)] font-bold">Streak</div>
+          <div id="statStreak" class="text-xl font-black tabular text-emerald-400">0</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-2.5">
+          <div class="text-[11px] text-[var(--muted-foreground)] font-bold">Best Rec</div>
+          <div id="statBestRec" class="text-xl font-black tabular">—</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-2.5">
+          <div class="text-[11px] text-[var(--muted-foreground)] font-bold">High PPG</div>
+          <div id="statHighPPG" class="text-xl font-black tabular">—</div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">Saved Squads</div>
+        <div id="hofList" class="space-y-2 text-xs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Optional Account Modal -->
+  <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h2 id="authTitle" class="text-base font-black tracking-tight">Optional Account</h2>
+        <button id="btnCloseAuth" class="px-2.5 py-1 rounded-lg bg-[var(--content)] text-xs font-bold cursor-pointer">Close</button>
+      </div>
+
+      <!-- Signed-in view -->
+      <div id="authSignedIn" class="hidden space-y-3 text-xs">
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3.5 space-y-1">
+          <div class="text-[var(--muted-foreground)]">Signed in as</div>
+          <div id="authUsernameLabel" class="text-base font-black text-emerald-400"></div>
+          <div class="text-[var(--muted-foreground)]">Your runs, Daily streaks, and Hall of Fame sync across devices.</div>
+        </div>
+        <button id="btnLogout" class="w-full py-2 rounded-xl border border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold cursor-pointer">
+          Sign Out
+        </button>
+      </div>
+
+      <!-- Sign in / Register form -->
+      <form id="authForm" class="space-y-3 text-xs">
+        <p class="text-[var(--muted-foreground)] leading-relaxed">
+          Accounts are <strong>100% optional</strong>. Sign up to claim your guest runs, show your username on the Daily Leaderboard, and sync across devices.
+        </p>
+        <div class="inline-flex w-full rounded-lg border border-[var(--border)] bg-[var(--content)] p-0.5">
+          <button type="button" id="tabLogin" class="flex-1 py-1.5 rounded-md font-bold cursor-pointer bg-emerald-600 text-white">Sign In</button>
+          <button type="button" id="tabRegister" class="flex-1 py-1.5 rounded-md font-bold cursor-pointer text-[var(--muted-foreground)]">Create Account</button>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-[var(--muted-foreground)]">Username</label>
+          <input id="authUser" type="text" required minlength="3" maxlength="20" autocomplete="username" placeholder="3–20 letters, numbers, or _"
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-[var(--muted-foreground)]">Password</label>
+          <input id="authPass" type="password" required minlength="8" autocomplete="current-password" placeholder="At least 8 characters"
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div id="authError" class="hidden text-rose-400 font-bold"></div>
+        <button type="submit" id="btnAuthSubmit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black cursor-pointer">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Welcome & Rules Modal -->
+  <div id="helpModal" class="hidden fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl card-snap">
+      <div class="flex items-center gap-2.5">
+        <span class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-sm tracking-tight">KNOW BALL</span>
+        <div>
+          <h2 class="text-base font-black tracking-tight leading-tight">Do You Know Ball?</h2>
+          <p class="text-xs text-[var(--muted-foreground)]">Draft an all-time fantasy football squad &amp; chase 17-0</p>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-[var(--muted-foreground)] leading-relaxed">
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 flex gap-2.5">
+          <span class="text-base shrink-0">🎰</span>
+          <div><strong class="text-[var(--foreground)]">Spin Franchise × 5-Year Window:</strong> Fill 7 starting spots (<code>QB, 2 RB, 2 WR, TE, FLEX</code>). You get <strong>1 Franchise Reroll</strong> and <strong>1 Window Reroll</strong>.</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 flex gap-2.5">
+          <span class="text-base shrink-0">📅</span>
+          <div><strong class="text-[var(--foreground)]">Pick the Exact Season:</strong> Choose which specific season you want from that 5-year window—nail their peak year and dodge injury seasons!</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 flex gap-2.5">
+          <span class="text-base shrink-0">⚡</span>
+          <div><strong class="text-[var(--foreground)]">Stacks, Pick % &amp; S-Tier Grades:</strong> Stack your QB + WR/TE from the same franchise &amp; window for <strong>+2.5 PPG/wk</strong> (or <strong>+4.0</strong> exact same season). See live <strong>crowd pick percentages</strong> and Daily percentiles after Round 7!</div>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 flex gap-2.5">
+          <span class="text-base shrink-0">🏈</span>
+          <div><strong class="text-[var(--foreground)]">Real Weekly Game Logs:</strong> Your 7 starters play their actual historical weekly games across 17 weeks. Click any week to inspect the box score.</div>
+        </div>
+      </div>
+
+      <button id="btnCloseHelp" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black tracking-tight transition cursor-pointer">
+        Start Drafting →
+      </button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
