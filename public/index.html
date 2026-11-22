@@ -421,8 +421,21 @@
         <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3.5 space-y-1">
           <div class="text-[var(--muted-foreground)]">Signed in as</div>
           <div id="authUsernameLabel" class="text-base font-black text-emerald-400"></div>
-          <div class="text-[var(--muted-foreground)]">Your runs, Daily streaks, and Hall of Fame sync across devices.</div>
+          <div id="authEmailDisplay" class="text-xs text-[var(--muted-foreground)]"></div>
+          <div class="text-[var(--muted-foreground)] pt-1">Your runs, Daily streaks, and Hall of Fame sync across devices.</div>
         </div>
+
+        <!-- Optional add-email fallback for existing accounts without email -->
+        <form id="addEmailForm" class="hidden rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 space-y-2">
+          <label class="font-bold text-[var(--muted-foreground)] block">Add an email (optional)</label>
+          <div class="flex gap-2">
+            <input id="addEmailInput" type="email" required placeholder="you@example.com"
+              class="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+            <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer">Save</button>
+          </div>
+          <div id="addEmailMsg" class="hidden font-bold"></div>
+        </form>
+
         <button id="btnLogout" class="w-full py-2 rounded-xl border border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-bold cursor-pointer">
           Sign Out
         </button>
@@ -438,8 +451,13 @@
           <button type="button" id="tabRegister" class="flex-1 py-1.5 rounded-md font-bold cursor-pointer text-[var(--muted-foreground)]">Create Account</button>
         </div>
         <div class="space-y-1">
-          <label class="font-bold text-[var(--muted-foreground)]">Username</label>
-          <input id="authUser" type="text" required minlength="3" maxlength="20" autocomplete="username" placeholder="3–20 letters, numbers, or _"
+          <label id="authUserLabel" class="font-bold text-[var(--muted-foreground)]">Username or Email</label>
+          <input id="authUser" type="text" required minlength="3" maxlength="254" autocomplete="username" placeholder="Username or email"
+            class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div id="authEmailWrap" class="hidden space-y-1">
+          <label class="font-bold text-[var(--muted-foreground)]">Email</label>
+          <input id="authEmail" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"
             class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-base sm:text-sm focus:outline-none focus:border-emerald-500" />
         </div>
         <div class="space-y-1">

@@ -27,6 +27,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     username_lower TEXT NOT NULL UNIQUE,
+    email TEXT,
+    email_lower TEXT,
     password_hash TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -94,11 +96,19 @@ db.exec(`
   );
 `);
 
-// Safe migration for existing SQLite volumes created before hints_used existed
+// Safe migrations for existing Railway SQLite volumes
 const runCols = db.prepare(`PRAGMA table_info(runs)`).all().map(c => c.name);
 if (!runCols.includes('hints_used')) {
   db.exec(`ALTER TABLE runs ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0`);
 }
+const userCols = db.prepare(`PRAGMA table_info(users)`).all().map(c => c.name);
+if (!userCols.includes('email')) {
+  db.exec(`ALTER TABLE users ADD COLUMN email TEXT`);
+}
+if (!userCols.includes('email_lower')) {
+  db.exec(`ALTER TABLE users ADD COLUMN email_lower TEXT`);
+}
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(email_lower) WHERE email_lower IS NOT NULL`);
 
 // Periodic cleanup of expired sessions on startup
 db.prepare(`DELETE FROM sessions WHERE expires_at <= datetime('now')`).run();

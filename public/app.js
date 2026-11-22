@@ -1130,18 +1130,34 @@ function openAuthModal() {
     document.getElementById('authSignedIn').classList.remove('hidden');
     document.getElementById('authForm').classList.add('hidden');
     document.getElementById('authUsernameLabel').textContent = `@${state.user.username}`;
+    const emailDisp = document.getElementById('authEmailDisplay');
+    const addForm = document.getElementById('addEmailForm');
+    if (state.user.email) {
+      emailDisp.textContent = state.user.email;
+      addForm.classList.add('hidden');
+    } else {
+      emailDisp.textContent = 'No email on file (optional)';
+      addForm.classList.remove('hidden');
+      document.getElementById('addEmailMsg').classList.add('hidden');
+    }
   } else {
     document.getElementById('authSignedIn').classList.add('hidden');
     document.getElementById('authForm').classList.remove('hidden');
+    setAuthTab(state.authMode);
   }
 }
 
 function setAuthTab(mode) {
   state.authMode = mode;
-  document.getElementById('tabLogin').className = `flex-1 py-1.5 rounded-md font-bold cursor-pointer ${mode === 'login' ? 'bg-emerald-600 text-white' : 'text-[var(--muted-foreground)]'}`;
-  document.getElementById('tabRegister').className = `flex-1 py-1.5 rounded-md font-bold cursor-pointer ${mode === 'register' ? 'bg-emerald-600 text-white' : 'text-[var(--muted-foreground)]'}`;
-  document.getElementById('btnAuthSubmit').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
-  document.getElementById('authPass').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+  const isReg = mode === 'register';
+  document.getElementById('tabLogin').className = `flex-1 py-1.5 rounded-md font-bold cursor-pointer ${!isReg ? 'bg-emerald-600 text-white' : 'text-[var(--muted-foreground)]'}`;
+  document.getElementById('tabRegister').className = `flex-1 py-1.5 rounded-md font-bold cursor-pointer ${isReg ? 'bg-emerald-600 text-white' : 'text-[var(--muted-foreground)]'}`;
+  document.getElementById('authUserLabel').textContent = isReg ? 'Username' : 'Username or Email';
+  document.getElementById('authUser').placeholder = isReg ? '3–20 letters, numbers, or _' : 'Username or email';
+  document.getElementById('authEmailWrap').classList.toggle('hidden', !isReg);
+  document.getElementById('authEmail').required = isReg;
+  document.getElementById('btnAuthSubmit').textContent = isReg ? 'Create Account' : 'Sign In';
+  document.getElementById('authPass').autocomplete = isReg ? 'new-password' : 'current-password';
 }
 
 // ==================== SHARE & CHALLENGE ACTIONS ====================
@@ -1290,23 +1306,47 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
   const errEl = document.getElementById('authError');
   errEl.classList.add('hidden');
   try {
-    const endpoint = state.authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-    const res = await api(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({
-        username: document.getElementById('authUser').value,
-        password: document.getElementById('authPass').value,
-      }),
-    });
+    const isReg = state.authMode === 'register';
+    const endpoint = isReg ? '/api/auth/register' : '/api/auth/login';
+    const body = isReg
+      ? {
+          username: document.getElementById('authUser').value,
+          email: document.getElementById('authEmail').value,
+          password: document.getElementById('authPass').value,
+        }
+      : {
+          identifier: document.getElementById('authUser').value,
+          password: document.getElementById('authPass').value,
+        };
+    const res = await api(endpoint, { method: 'POST', body: JSON.stringify(body) });
     state.user = res.user;
     state.stats = res.stats;
     document.getElementById('authPass').value = '';
+    if (isReg) trackEvent('account_registered');
     updateAccountBtn();
     updateHOFBadge();
     document.getElementById('authModal').classList.add('hidden');
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('addEmailForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('addEmailMsg');
+  msg.classList.add('hidden');
+  try {
+    const res = await api('/api/auth/email', {
+      method: 'POST',
+      body: JSON.stringify({ email: document.getElementById('addEmailInput').value }),
+    });
+    state.user = res.user;
+    document.getElementById('authEmailDisplay').textContent = res.user.email;
+    document.getElementById('addEmailForm').classList.add('hidden');
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'text-rose-400 font-bold';
   }
 });
 

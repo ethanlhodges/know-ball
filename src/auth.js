@@ -81,13 +81,13 @@ function attachIdentity(req, res, next) {
   const rawSid = req.cookies?.[SESSION_COOKIE];
   if (rawSid && typeof rawSid === 'string') {
     const row = db.prepare(`
-      SELECT u.id, u.username, u.created_at
+      SELECT u.id, u.username, u.email, u.created_at
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > datetime('now')
     `).get(hashToken(rawSid));
     if (row) {
-      req.user = { id: row.id, username: row.username, createdAt: row.created_at };
+      req.user = { id: row.id, username: row.username, email: row.email || null, createdAt: row.created_at };
     }
   }
   next();

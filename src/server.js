@@ -238,28 +238,38 @@ app.get('/api/me', (req, res) => {
 
 // ==================== OPTIONAL AUTH ROUTES ====================
 const authLimiter = rateLimit({ windowMs: 60000, max: 15 });
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const username = String(req.body?.username || '').trim();
+    const email = String(req.body?.email || '').trim();
     const password = String(req.body?.password || '');
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       return res.status(400).json({ error: 'Username must be 3–20 letters, numbers, or underscores.' });
     }
+    if (!email || email.length > 254 || !EMAIL_RE.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
     if (password.length < 8 || password.length > 128) {
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     }
 
-    const existing = db.prepare(`SELECT id FROM users WHERE username_lower = ?`).get(username.toLowerCase());
-    if (existing) {
+    const emailLower = email.toLowerCase();
+    const existingUser = db.prepare(`SELECT id FROM users WHERE username_lower = ?`).get(username.toLowerCase());
+    if (existingUser) {
       return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    const existingEmail = db.prepare(`SELECT id FROM users WHERE email_lower = ?`).get(emailLower);
+    if (existingEmail) {
+      return res.status(409).json({ error: 'An account with that email already exists.' });
     }
 
     const pwHash = await hashPassword(password);
     const info = db.prepare(
-      `INSERT INTO users (username, username_lower, password_hash) VALUES (?, ?, ?)`
-    ).run(username, username.toLowerCase(), pwHash);
+      `INSERT INTO users (username, username_lower, email, email_lower, password_hash) VALUES (?, ?, ?, ?, ?)`
+    ).run(username, username.toLowerCase(), email, emailLower, pwHash);
     const userId = Number(info.lastInsertRowid);
 
     // Seamlessly claim any prior anonymous runs from this browser!
@@ -269,7 +279,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     }
 
     createSession(res, userId);
-    req.user = { id: userId, username };
+    req.user = { id: userId, username, email };
     res.status(201).json({ user: req.user, stats: getIdentityStats(req) });
   } catch (err) {
     console.error('Register error:', err);
@@ -279,16 +289,18 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const username = String(req.body?.username || '').trim();
+    const identifier = String(req.body?.identifier || req.body?.username || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
-    const user = db.prepare(`SELECT id, username, password_hash FROM users WHERE username_lower = ?`).get(username.toLowerCase());
+    const user = db.prepare(
+      `SELECT id, username, email, password_hash FROM users WHERE username_lower = ? OR email_lower = ?`
+    ).get(identifier, identifier);
 
     // Always run scrypt verification even if user not found to prevent timing-based user enumeration
     const fakeHash = 'scrypt$16384$8$1$00000000000000000000000000000000$' + '0'.repeat(128);
     const ok = await verifyPassword(password, user ? user.password_hash : fakeHash);
 
     if (!user || !ok) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Invalid username/email or password.' });
     }
 
     if (req.anonId) {
@@ -297,12 +309,28 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     createSession(res, user.id);
-    req.user = { id: user.id, username: user.username };
+    req.user = { id: user.id, username: user.username, email: user.email || null };
     res.json({ user: req.user, stats: getIdentityStats(req) });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Could not sign in.' });
   }
+});
+
+app.post('/api/auth/email', authLimiter, (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'Sign in required.' });
+  const email = String(req.body?.email || '').trim();
+  if (!email || email.length > 254 || !EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+  const emailLower = email.toLowerCase();
+  const conflict = db.prepare(`SELECT id FROM users WHERE email_lower = ? AND id != ?`).get(emailLower, req.user.id);
+  if (conflict) {
+    return res.status(409).json({ error: 'That email is already in use.' });
+  }
+  db.prepare(`UPDATE users SET email = ?, email_lower = ? WHERE id = ?`).run(email, emailLower, req.user.id);
+  req.user.email = email;
+  res.json({ user: req.user });
 });
 
 app.post('/api/auth/logout', (req, res) => {

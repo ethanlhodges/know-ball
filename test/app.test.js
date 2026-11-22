@@ -143,36 +143,59 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     assert.ok(html.includes('1 Hint 💡'));
   });
 
-  it('handles optional scrypt auth, rejects bad passwords, and claims prior anonymous runs', async () => {
+  it('handles optional scrypt auth with email, rejects bad emails/passwords, and supports username or email login', async () => {
     const meRes = await fetch(`${BASE}/api/me`);
     let cookie = meRes.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
+
+    // Reject missing/invalid email
+    const noEmail = await fetch(`${BASE}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ username: 'ballknower99', password: 'correcthorsebatterystaple' }),
+    });
+    assert.equal(noEmail.status, 400);
 
     // Reject weak password
     const weak = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
-      body: JSON.stringify({ username: 'ballknower99', password: '123' }),
+      body: JSON.stringify({ username: 'ballknower99', email: 'ball@example.com', password: '123' }),
     });
     assert.equal(weak.status, 400);
 
-    // Register valid user
+    // Register valid user with email
     const reg = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
-      body: JSON.stringify({ username: 'ballknower99', password: 'correcthorsebatterystaple' }),
+      body: JSON.stringify({ username: 'ballknower99', email: 'Ball@Example.com', password: 'correcthorsebatterystaple' }),
     });
     assert.equal(reg.status, 201);
+    const regData = await reg.json();
+    assert.equal(regData.user.email, 'Ball@Example.com');
+
+    // Reject duplicate email (case-insensitive)
+    const dupEmail = await fetch(`${BASE}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'otheruser', email: 'ball@example.com', password: 'correcthorsebatterystaple' }),
+    });
+    assert.equal(dupEmail.status, 409);
 
     // Reject wrong password
     const bad = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'ballknower99', password: 'wrongpassword' }),
+      body: JSON.stringify({ identifier: 'ballknower99', password: 'wrongpassword' }),
     });
     assert.equal(bad.status, 401);
 
-    // Accept correct password (case-insensitive username)
-    const good = await fetch(`${BASE}/api/auth/login`, {
+    // Accept login by username (case-insensitive)
+    const goodUser = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'BallKnower99', password: 'correcthorsebatterystaple' }),
+      body: JSON.stringify({ identifier: 'BallKnower99', password: 'correcthorsebatterystaple' }),
     });
-    assert.equal(good.status, 200);
+    assert.equal(goodUser.status, 200);
+
+    // Accept login by email (case-insensitive)
+    const goodEmail = await fetch(`${BASE}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'ball@example.com', password: 'correcthorsebatterystaple' }),
+    });
+    assert.equal(goodEmail.status, 200);
   });
 });
