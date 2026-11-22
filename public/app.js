@@ -930,17 +930,12 @@ function renderField() {
   const effectiveTotal = total + stacks.totalBonus;
   document.getElementById('fieldTotalPPG').textContent = effectiveTotal.toFixed(1);
   document.getElementById('fieldScoringTag').textContent = cfg.name;
-  document.getElementById('fieldTargetLabel').textContent = `${cfg.target.toFixed(0)}+ PPG`;
   const stackBadge = document.getElementById('fieldStackBadge');
   if (stacks.totalBonus > 0) {
     stackBadge.classList.remove('hidden');
     stackBadge.textContent = `⚡ +${stacks.totalBonus.toFixed(1)} STACK`;
     stackBadge.title = stacks.labels.join(', ');
   } else stackBadge.classList.add('hidden');
-
-  const bar = document.getElementById('fieldTargetBar');
-  bar.style.width = `${Math.min(100, (effectiveTotal / cfg.target) * 100)}%`;
-  bar.className = `h-full rounded-full transition-all duration-300 ${effectiveTotal >= cfg.target ? 'bg-emerald-400' : 'bg-amber-400'}`;
 }
 
 // ==================== SEARCH & HINTS ====================
