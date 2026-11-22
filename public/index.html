@@ -234,6 +234,7 @@
           <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] px-3 py-2 text-center" title="Actual average across the 17 simulated weekly games (includes stacks and any injury waiver fill-ins)">
             <div class="text-[11px] font-bold uppercase text-[var(--muted-foreground)]">17-Wk Avg</div>
             <div id="simPPG" class="text-lg font-black tabular">0.0</div>
+            <div id="simInjuryNote" class="hidden text-[10px] font-bold text-amber-400 tabular"></div>
           </div>
           <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] px-3 py-2 text-center">
             <div class="text-[11px] font-bold uppercase text-[var(--muted-foreground)]">Optimal</div>
@@ -479,7 +480,7 @@
         </div>
         <div class="rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 flex gap-2.5">
           <span class="text-base shrink-0">🏈</span>
-          <div><strong class="text-[var(--foreground)]">Real Weekly Game Logs:</strong> Your 7 starters play their actual historical weekly games across 17 weeks. Click any week to inspect the box score.</div>
+          <div><strong class="text-[var(--foreground)]">Real Weekly Game Logs &amp; Injuries:</strong> Your 7 starters play their actual historical weekly games across 17 weeks. Injury-shortened seasons plug in <strong>🏥 Waiver</strong> fill-in weeks—so durability matters! Click any week to inspect the box score.</div>
         </div>
       </div>
 

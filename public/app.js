@@ -537,10 +537,12 @@ function getPlayer17WeekLog(player, rng) {
   const missed = Math.max(0, seasonCap - raw.length);
   const waiverWeeks = missed >= 4 ? Math.min(4, Math.floor(missed / 2)) : 0;
 
-  const log = raw.slice();
-  for (let i = 0; i < waiverWeeks; i++) log.push(Math.round((cfg.waiver + (rng() - 0.5) * 4.0) * 10) / 10);
+  const log = raw.map(pts => ({ pts, waiver: false }));
+  for (let i = 0; i < waiverWeeks; i++) {
+    log.push({ pts: Math.round((cfg.waiver + (rng() - 0.5) * 4.0) * 10) / 10, waiver: true });
+  }
   let idx = 0;
-  while (log.length < 17) { log.push(raw[idx % raw.length]); idx++; }
+  while (log.length < 17) { log.push({ pts: raw[idx % raw.length], waiver: false }); idx++; }
   const out = log.slice(0, 17);
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -565,7 +567,10 @@ function buildRealWeeklySim() {
   const weeks = [];
   for (let w = 0; w < 17; w++) {
     const breakdown = state.roster.map((p, sIdx) => ({
-      slot: SLOTS[sIdx].label, name: p.name.split(' ').slice(-1)[0], pts: playerLogs[sIdx][w],
+      slot: SLOTS[sIdx].label,
+      name: p.name.split(' ').slice(-1)[0],
+      pts: playerLogs[sIdx][w].pts,
+      waiver: playerLogs[sIdx][w].waiver,
     }));
     const my = Math.round((breakdown.reduce((a, b) => a + b.pts, 0) + stacks.totalBonus) * 10) / 10;
     const opp = Math.round(Math.max(72, cfg.oppMean + randNormal(oppRng) * cfg.oppSd) * 10) / 10;
@@ -719,6 +724,9 @@ function renderWeekBoxScore(wk) {
   const maxP = Math.max(...wk.breakdown.map(b => b.pts));
   const minP = Math.min(...wk.breakdown.map(b => b.pts));
   document.getElementById('weekBoxScore').innerHTML = wk.breakdown.map(b => {
+    if (b.waiver) {
+      return `<span class="px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-300 font-bold" title="Injury waiver fill-in for ${escapeHtml(b.name)}">🏥 ${b.slot} Waiver <strong>${b.pts.toFixed(1)}</strong></span>`;
+    }
     const cls = b.pts === maxP ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold'
       : b.pts === minP && b.pts < 10 ? 'border-rose-500/40 bg-rose-500/10 text-rose-400 font-bold'
       : 'border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)]';
@@ -735,6 +743,16 @@ function playSeasonSim(sim, instant = false) {
   document.getElementById('simPPG').textContent = sim.avgPPG.toFixed(1);
   document.getElementById('simOptPct').textContent = `${sim.optPct.toFixed(0)}%`;
   document.getElementById('simStackBonus').textContent = `+${sim.stackBonus.toFixed(1)}`;
+
+  const totalWaiverWks = (sim.weeks || []).reduce((sum, wk) =>
+    sum + (wk.breakdown || []).filter(b => b.waiver).length, 0);
+  const injEl = document.getElementById('simInjuryNote');
+  if (totalWaiverWks > 0) {
+    injEl.textContent = `🏥 ${totalWaiverWks} inj wk${totalWaiverWks === 1 ? '' : 's'}`;
+    injEl.classList.remove('hidden');
+  } else {
+    injEl.classList.add('hidden');
+  }
 
   const grid = document.getElementById('weekGrid');
   grid.innerHTML = '';
