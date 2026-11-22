@@ -219,7 +219,7 @@ app.get('/api/players', (_req, res) => {
 app.get('/api/me', (req, res) => {
   const stats = getIdentityStats(req);
   const today = req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : getTodayUTC();
-  const scoring = ['ppr', 'half', 'std'].includes(req.query.scoring) ? req.query.scoring : 'ppr';
+  const scoring = ['ppr', 'half', 'std'].includes(req.query.scoring) ? req.query.scoring : 'half';
   const where = req.user ? `user_id = ?` : `anon_id = ?`;
   const param = req.user ? req.user.id : req.anonId;
 
@@ -317,7 +317,7 @@ app.post('/api/runs', runLimiter, (req, res) => {
   try {
     const b = req.body || {};
     const mode = ['daily', 'unlimited', 'challenge'].includes(b.mode) ? b.mode : 'unlimited';
-    const scoring = ['ppr', 'half', 'std'].includes(b.scoring) ? b.scoring : 'ppr';
+    const scoring = ['ppr', 'half', 'std'].includes(b.scoring) ? b.scoring : 'half';
     const boardDate = /^\d{4}-\d{2}-\d{2}$/.test(b.boardDate) ? b.boardDate : getTodayUTC();
 
     if (!Array.isArray(b.roster) || b.roster.length !== 7 || !Array.isArray(b.spins) || b.spins.length !== 7) {
@@ -420,7 +420,7 @@ app.get('/api/history', (req, res) => {
 
 app.get('/api/daily/leaderboard', (req, res) => {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : getTodayUTC();
-  const scoring = ['ppr', 'half', 'std'].includes(req.query.scoring) ? req.query.scoring : 'ppr';
+  const scoring = ['ppr', 'half', 'std'].includes(req.query.scoring) ? req.query.scoring : 'half';
 
   const top = db.prepare(`
     SELECT short_code, display_name, user_id, wins, losses, avg_ppg, stack_bonus, opt_pct, grades_json, hints_used, created_at

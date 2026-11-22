@@ -36,7 +36,7 @@ const SFX = {
 
 // ==================== METADATA ====================
 const POS_LIST = ['QB', 'RB', 'WR', 'TE'];
-const ERA_LIST = ['2000–04', '2005–09', '2010–14', '2015–19', '2020–25'];
+const ERA_LIST = ['1999–04', '2005–09', '2010–14', '2015–19', '2020–25'];
 const ERA_SUB  = ['1999–2004 seasons', '2005–2009 seasons', '2010–2014 seasons', '2015–2019 seasons', '2020–2025 seasons'];
 const OPP_NAMES = [
   '4th & Inches', 'Waiver Wire Sharks', 'Sunday Scaries', 'Bye Week Blues',
@@ -91,9 +91,9 @@ const SLOTS = [
 ];
 
 const SCORE_CONFIG = {
-  ppr:  { name: 'PPR',  target: 155.0, oppMean: 118.0, oppSd: 16.5, waiver: 7.5, base: { QB: 17.5, RB: 13.5, WR: 13.5, TE: 9.5 } },
-  half: { name: 'HALF', target: 138.0, oppMean: 105.0, oppSd: 15.0, waiver: 6.5, base: { QB: 17.0, RB: 11.8, WR: 11.0, TE: 8.0 } },
-  std:  { name: 'STD',  target: 123.0, oppMean: 93.0,  oppSd: 14.0, waiver: 5.5, base: { QB: 16.5, RB: 10.2, WR: 8.8,  TE: 6.5 } },
+  ppr:  { name: 'PPR',      target: 155.0, oppMean: 118.0, oppSd: 16.5, waiver: 7.5, base: { QB: 17.5, RB: 13.5, WR: 13.5, TE: 9.5 } },
+  half: { name: 'HALF-PPR', target: 138.0, oppMean: 105.0, oppSd: 15.0, waiver: 6.5, base: { QB: 17.0, RB: 11.8, WR: 11.0, TE: 8.0 } },
+  std:  { name: 'STD',      target: 123.0, oppMean: 93.0,  oppSd: 14.0, waiver: 5.5, base: { QB: 16.5, RB: 10.2, WR: 8.8,  TE: 6.5 } },
 };
 
 const POS_CHIP = { QB: 'bg-rose-500 text-white', RB: 'bg-emerald-500 text-white', WR: 'bg-sky-500 text-white', TE: 'bg-amber-500 text-black' };
@@ -136,7 +136,7 @@ const state = {
   user: null,
   stats: { totalRuns: 0, perfects: 0, bestWins: -1, highPPG: 0, streak: 0 },
   mode: 'daily', // 'daily' | 'unlimited' | 'challenge'
-  scoring: 'ppr',
+  scoring: 'half',
   round: 0,
   spins: [],
   usedBuckets: new Set(),
@@ -836,8 +836,8 @@ function renderChrome() {
   document.getElementById('btnModeDaily').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.mode === 'daily' ? act : inact}`;
   document.getElementById('btnModeUnlimited').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.mode === 'unlimited' ? act : inact}`;
   document.getElementById('headerSub').textContent = state.mode === 'daily'
-    ? `Daily Challenge · ${getTodayUTC()} · Pure Trivia`
-    : state.mode === 'challenge' ? '1v1 Friend Challenge' : 'Unlimited Mode · Pick Exact Seasons';
+    ? `Daily Challenge · ${getTodayUTC()} · Half-PPR`
+    : state.mode === 'challenge' ? '1v1 Friend Challenge · Half-PPR' : 'Unlimited Mode · Half-PPR';
 
   document.querySelectorAll('.score-btn').forEach(btn => {
     btn.className = `score-btn px-2 py-1 rounded-md font-bold transition cursor-pointer ${btn.dataset.score === state.scoring ? act : inact}`;
