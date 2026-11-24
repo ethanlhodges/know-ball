@@ -298,6 +298,7 @@ function startDraft(mode = state.mode, opts = {}) {
   state.lastCrowd = null;
   state.hintedRounds = new Set();
   state.hintsUsed = 0;
+  state.runDifficulty = state.difficulty;
 
   document.getElementById('draftConsole').classList.remove('hidden');
   document.getElementById('simStage').classList.add('hidden');
@@ -308,6 +309,7 @@ function startDraft(mode = state.mode, opts = {}) {
   document.getElementById('inspectorBar').classList.add('hidden');
   document.getElementById('playerSearch').value = '';
   document.getElementById('searchDropdown').classList.add('hidden');
+  document.getElementById('casualPoolWrap').classList.add('hidden');
   if (mode !== 'challenge') document.getElementById('contextBanner').classList.add('hidden');
 
   renderChrome();
@@ -316,6 +318,7 @@ function startDraft(mode = state.mode, opts = {}) {
     paintTeamReel(state.spins[0].teamIdx);
     paintEraReel(state.spins[0].eraIdx);
     renderDraftHeader();
+    renderCasualPool('');
   } else {
     animateSpin(true, true);
   }
@@ -339,6 +342,7 @@ function animateSpin(spinTeam, spinEra) {
   state.pendingPlayer = null;
   document.getElementById('yearPickerWrap').classList.add('hidden');
   document.getElementById('searchWrap').classList.remove('hidden');
+  document.getElementById('casualPoolWrap').classList.add('hidden');
   const search = document.getElementById('playerSearch');
   search.disabled = true;
   renderDraftHeader();
@@ -361,9 +365,12 @@ function animateSpin(spinTeam, spinEra) {
       state.spinning = false;
       search.disabled = false;
       const tName = TEAMS[target.teamIdx].name.split(' ').pop();
-      search.placeholder = `Draft a ${ERA_LIST[target.eraIdx]} ${tName} player...`;
+      search.placeholder = state.difficulty === 'casual'
+        ? `Filter ${ERA_LIST[target.eraIdx]} ${tName} players below...`
+        : `Draft a ${ERA_LIST[target.eraIdx]} ${tName} player...`;
       renderDraftHeader();
-      search.focus();
+      renderCasualPool('');
+      if (state.difficulty !== 'casual') search.focus();
     }
   }
   tick();
@@ -594,6 +601,7 @@ async function finishAndPersistDraft() {
   state.lastSim = sim;
   trackEvent('draft_completed', {
     mode: state.mode,
+    difficulty: state.runDifficulty,
     wins: sim.wins,
     avg_ppg: Math.round(sim.avgPPG * 10) / 10,
     hints_used: state.hintsUsed,
@@ -623,6 +631,7 @@ async function finishAndPersistDraft() {
     weeks: sim.weeks,
     challengeCode: state.challengeCode,
     hintsUsed: state.hintsUsed,
+    difficulty: state.runDifficulty,
   };
 
   api('/api/runs', { method: 'POST', body: JSON.stringify(payload) })
@@ -1071,6 +1080,7 @@ async function openLeaderboard() {
             <span class="w-6 font-black tabular text-[var(--muted-foreground)]">#${i + 1}</span>
             <span class="font-bold truncate">${r.isAccount ? '@' : ''}${escapeHtml(r.displayName)}</span>
             <span class="text-[11px] font-mono text-[var(--muted-foreground)]">${r.grades.join('')}</span>
+            ${r.difficulty === 'casual' ? `<span class="px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 text-[10px] font-black" title="Casual Mode (roster listed)">📋 Casual</span>` : ''}
             <span class="text-[11px] font-bold ${r.hintsUsed === 0 ? 'text-emerald-400' : 'text-amber-400'}" title="${r.hintsUsed === 0 ? 'Pure (No Hints)' : `${r.hintsUsed} hint(s) used`}">${r.hintsUsed === 0 ? '🧠' : `💡${r.hintsUsed}`}</span>
           </div>
           <div class="flex items-center gap-2.5 shrink-0 tabular">
@@ -1109,10 +1119,11 @@ async function openHOF() {
       list.innerHTML = data.runs.map(s => `
         <a href="/r/${s.shortCode}" class="block rounded-xl border border-[var(--border)] bg-[var(--content)] hover:border-emerald-500/50 p-3 space-y-1 transition">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="font-black text-sm tabular ${s.wins === 17 ? 'text-amber-400' : 'text-emerald-400'}">${s.wins}-${s.losses}</span>
               <span class="font-bold tabular">${s.avgPPG.toFixed(1)} PPG</span>
               ${s.stackBonus > 0 ? `<span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold text-[11px]">⚡ +${s.stackBonus.toFixed(1)}</span>` : ''}
+              ${s.difficulty === 'casual' ? `<span class="px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-300 font-bold text-[11px]">📋 Casual</span>` : ''}
               <span class="text-[11px] font-bold ${(s.hintsUsed || 0) === 0 ? 'text-emerald-400' : 'text-amber-400'}">${(s.hintsUsed || 0) === 0 ? '🧠 Pure' : `💡 ${s.hintsUsed}`}</span>
             </div>
             <span class="text-[var(--muted-foreground)]">${s.mode} · ${s.scoring.toUpperCase()} · ${s.boardDate}</span>
@@ -1180,10 +1191,11 @@ function copyShareCard() {
   const tag = state.mode === 'daily' ? `Daily ${getTodayUTC()}` : 'Unlimited';
   const sq = sim.weeks.map(w => w.win ? '🟩' : '🟥').join('');
   const grades = state.picksByRound.map(p => p.grade).join('');
+  const dTag = state.runDifficulty === 'casual' ? ' · 📋 Casual' : '';
   const hTag = state.hintsUsed === 0 ? 'No Hints 🧠' : `${state.hintsUsed} Hint${state.hintsUsed === 1 ? '' : 's'} 💡`;
   const link = state.lastSavedCode ? `${window.location.origin}/r/${state.lastSavedCode}` : '';
   const text = [
-    `🏈 KNOW BALL — Fantasy Draft (${tag} · ${SCORE_CONFIG[state.scoring].name})`,
+    `🏈 KNOW BALL — Fantasy Draft (${tag} · ${SCORE_CONFIG[state.scoring].name}${dTag})`,
     `Record: ${sim.wins}-${sim.losses} | ${sim.avgPPG.toFixed(1)} PPG (${sim.optPct.toFixed(0)}% Optimal) | ${hTag} | Grades: ${grades}`,
     sim.stackBonus > 0 ? `⚡ Stack Bonus: +${sim.stackBonus.toFixed(1)} PPG/wk` : null,
     sq,
@@ -1212,6 +1224,7 @@ function displaySavedRun(run, crowd, bannerMsg = null) {
   state.roster = run.roster;
   state.slotGrades = new Array(7).fill('A');
   state.hintsUsed = run.hintsUsed || 0;
+  state.runDifficulty = run.difficulty || 'pro';
   state.round = 7;
   state.lastSavedCode = run.shortCode;
   state.lastCrowd = crowd;
@@ -1254,7 +1267,27 @@ function displaySavedRun(run, crowd, bannerMsg = null) {
   playSeasonSim(state.lastSim, true);
 }
 
+function setDifficulty(diff) {
+  state.difficulty = diff;
+  try { localStorage.setItem('knowball_difficulty', diff); } catch (_) {}
+  // If switched to Casual at any point during an active draft, mark the run as casual (anti-peek)
+  if (diff === 'casual' && state.round < 7) state.runDifficulty = 'casual';
+  if (diff === 'pro' && state.round === 0 && state.picksByRound.length === 0) state.runDifficulty = 'pro';
+  document.getElementById('hintDrawer').classList.add('hidden');
+  renderChrome();
+  if (state.round < 7 && !state.spinning) {
+    const spin = state.spins[state.round];
+    const tName = TEAMS[spin.teamIdx].name.split(' ').pop();
+    document.getElementById('playerSearch').placeholder = diff === 'casual'
+      ? `Filter ${ERA_LIST[spin.eraIdx]} ${tName} players below...`
+      : `Draft a ${ERA_LIST[spin.eraIdx]} ${tName} player...`;
+    renderSearch(document.getElementById('playerSearch').value);
+  }
+}
+
 // ==================== EVENTS ====================
+document.getElementById('btnDiffPro').addEventListener('click', () => setDifficulty('pro'));
+document.getElementById('btnDiffCasual').addEventListener('click', () => setDifficulty('casual'));
 document.getElementById('btnModeDaily').addEventListener('click', () => {
   window.history.pushState({}, '', '/');
   loadDailyOrStart();

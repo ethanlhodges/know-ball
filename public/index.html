@@ -88,6 +88,11 @@
           <button id="btnModeUnlimited" class="px-2.5 py-1 rounded-md font-bold transition cursor-pointer">Unlimited</button>
         </div>
 
+        <div class="inline-flex rounded-lg border border-[var(--border)] bg-[var(--card)] p-0.5 text-xs" title="Pro: type from memory · Casual: browse eligible players">
+          <button id="btnDiffPro" class="px-2.5 py-1 rounded-md font-bold transition cursor-pointer">Pro</button>
+          <button id="btnDiffCasual" class="px-2.5 py-1 rounded-md font-bold transition cursor-pointer">Casual</button>
+        </div>
+
         <button id="btnLeaderboard" class="px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--content)] text-xs font-bold transition cursor-pointer" title="Today's Leaderboard & Pick Rates">
           📊 Daily
         </button>
@@ -164,7 +169,7 @@
       </div>
 
       <!-- Command Search Picker -->
-      <div id="searchWrap" class="relative space-y-1.5">
+      <div id="searchWrap" class="relative space-y-2">
         <div class="flex items-center gap-2">
           <div class="relative flex-1">
             <input
@@ -187,6 +192,9 @@
         </div>
 
         <div id="searchDropdown" class="hidden absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--card)] divide-y divide-[var(--border)] shadow-2xl"></div>
+
+        <!-- Casual Mode: Eligible Player Browser (alphabetical, grouped by open position) -->
+        <div id="casualPoolWrap" class="hidden rounded-xl border border-[var(--border)] bg-[var(--content)] p-3 space-y-2.5 max-h-60 overflow-y-auto"></div>
       </div>
 
       <!-- Inline Season Picker -->
@@ -221,6 +229,7 @@
             <span id="simStatusTag" class="px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
               PLAYING REAL WEEKLY LOGS...
             </span>
+            <span id="difficultyPill" class="hidden px-2 py-0.5 rounded text-xs font-black"></span>
             <span id="hintsUsedPill" class="hidden px-2 py-0.5 rounded text-xs font-black"></span>
             <span id="dailyPercentilePill" class="hidden px-2 py-0.5 rounded text-xs font-black bg-sky-500/15 text-sky-300 border border-sky-500/30"></span>
             <button id="btnSkipSim" class="text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] underline cursor-pointer">Skip</button>

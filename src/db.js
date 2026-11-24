@@ -63,6 +63,7 @@ db.exec(`
     weeks_json TEXT NOT NULL,
     challenge_code TEXT,
     hints_used INTEGER NOT NULL DEFAULT 0,
+    difficulty TEXT NOT NULL DEFAULT 'pro',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
@@ -100,6 +101,9 @@ db.exec(`
 const runCols = db.prepare(`PRAGMA table_info(runs)`).all().map(c => c.name);
 if (!runCols.includes('hints_used')) {
   db.exec(`ALTER TABLE runs ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0`);
+}
+if (!runCols.includes('difficulty')) {
+  db.exec(`ALTER TABLE runs ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'pro'`);
 }
 const userCols = db.prepare(`PRAGMA table_info(users)`).all().map(c => c.name);
 if (!userCols.includes('email')) {

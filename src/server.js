@@ -85,6 +85,7 @@ function hydrateRun(row) {
     weeks: JSON.parse(row.weeks_json),
     challengeCode: row.challenge_code || null,
     hintsUsed: row.hints_used || 0,
+    difficulty: row.difficulty || 'pro',
     createdAt: row.created_at,
   };
 }
@@ -358,6 +359,7 @@ app.post('/api/runs', runLimiter, (req, res) => {
     const stackBonus = Math.round((Number(b.stackBonus) || 0) * 100) / 100;
     const optPct = Math.max(0, Math.min(100, Math.round((Number(b.optPct) || 0) * 10) / 10));
     const hintsUsed = Math.max(0, Math.min(7, Math.round(Number(b.hintsUsed) || 0)));
+    const difficulty = b.difficulty === 'casual' ? 'casual' : 'pro';
 
     let displayName = req.user ? req.user.username : String(b.displayName || '').trim().slice(0, 20);
     if (!displayName) displayName = 'Guest';
@@ -372,8 +374,8 @@ app.post('/api/runs', runLimiter, (req, res) => {
       INSERT INTO runs (
         short_code, user_id, anon_id, display_name, mode, board_date, scoring,
         spins_json, roster_json, grades_json, wins, losses, avg_ppg, base_ppg,
-        stack_bonus, opt_pct, weeks_json, challenge_code, hints_used
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        stack_bonus, opt_pct, weeks_json, challenge_code, hints_used, difficulty
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       code,
       req.user ? req.user.id : null,
@@ -393,7 +395,8 @@ app.post('/api/runs', runLimiter, (req, res) => {
       optPct,
       JSON.stringify(b.weeks || []),
       b.challengeCode || null,
-      hintsUsed
+      hintsUsed,
+      difficulty
     );
     const runId = Number(info.lastInsertRowid);
 
@@ -451,7 +454,7 @@ app.get('/api/daily/leaderboard', (req, res) => {
   const scoring = ['ppr', 'half', 'std'].includes(req.query.scoring) ? req.query.scoring : 'half';
 
   const top = db.prepare(`
-    SELECT short_code, display_name, user_id, wins, losses, avg_ppg, stack_bonus, opt_pct, grades_json, hints_used, created_at
+    SELECT short_code, display_name, user_id, wins, losses, avg_ppg, stack_bonus, opt_pct, grades_json, hints_used, difficulty, created_at
     FROM runs
     WHERE mode = 'daily' AND board_date = ? AND scoring = ?
     ORDER BY wins DESC, avg_ppg DESC, created_at ASC
@@ -520,6 +523,7 @@ app.get('/api/daily/leaderboard', (req, res) => {
       stackBonus: r.stack_bonus,
       optPct: r.opt_pct,
       hintsUsed: r.hints_used || 0,
+      difficulty: r.difficulty || 'pro',
       grades: JSON.parse(r.grades_json),
     })),
   });
@@ -598,9 +602,10 @@ app.get('/r/:code', (req, res) => {
   if (!row) return res.send(renderIndex());
   const weeks = JSON.parse(row.weeks_json);
   const sq = weeks.map(w => w.win ? '🟩' : '🟥').join('');
+  const dTag = (row.difficulty || 'pro') === 'casual' ? ' · 📋 Casual' : '';
   const hTag = (row.hints_used || 0) === 0 ? 'No Hints 🧠' : `${row.hints_used} Hint${row.hints_used === 1 ? '' : 's'} 💡`;
   const title = `${row.wins}-${row.losses} (${row.avg_ppg.toFixed(1)} PPG) — KNOW BALL Fantasy Draft`;
-  const desc = `${row.display_name} drafted a ${row.wins}-${row.losses} ${row.scoring.toUpperCase()} squad (${row.opt_pct.toFixed(0)}% Optimal · ${hTag}) ${sq}`;
+  const desc = `${row.display_name} drafted a ${row.wins}-${row.losses} ${row.scoring.toUpperCase()} squad (${row.opt_pct.toFixed(0)}% Optimal · ${hTag}${dTag}) ${sq}`;
   const ogMeta = `
     <meta property="og:title" content="${escapeAttr(title)}" />
     <meta property="og:description" content="${escapeAttr(desc)}" />

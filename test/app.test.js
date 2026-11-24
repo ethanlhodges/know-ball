@@ -117,6 +117,7 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
         grades: ['S', 'S', 'S', 'S', 'S', 'S', 'S'],
         wins: 17, avgPPG: 168.2, basePPG: 170.5, stackBonus: 0, optPct: 99.1,
         hintsUsed: 1,
+        difficulty: 'casual',
         weeks: Array.from({ length: 17 }, (_, w) => ({ week: w + 1, oppName: 'Opp', my: 168, opp: 105, win: true, breakdown: [] })),
       }),
     });
@@ -124,6 +125,7 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     const saved = await saveRes.json();
     assert.equal(saved.run.scoring, 'half');
     assert.equal(saved.run.hintsUsed, 1);
+    assert.equal(saved.run.difficulty, 'casual');
 
     // Fetch via /api/runs/:code and verify picksByRound preserves exact draft order (Cooper Kupp in Rd 0, Mahomes in Rd 1)
     const fetched = await (await fetch(`${BASE}/api/runs/${saved.shortCode}`)).json();
@@ -132,15 +134,17 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     assert.equal(fetched.run.picksByRound[2].playerName, 'Rob Gronkowski');
     assert.equal(fetched.crowd.pickRates[0].exactPct, 100);
 
-    // Verify Daily Leaderboard returns Half-PPR by default with hintsUsed
+    // Verify Daily Leaderboard returns Half-PPR by default with hintsUsed + difficulty
     const lb = await (await fetch(`${BASE}/api/daily/leaderboard?date=2026-11-22`)).json();
     assert.equal(lb.scoring, 'half');
     assert.equal(lb.leaders[0].hintsUsed, 1);
+    assert.equal(lb.leaders[0].difficulty, 'casual');
 
     // Verify OG meta tags on /r/:code
     const html = await (await fetch(`${BASE}/r/${saved.shortCode}`)).text();
     assert.ok(html.includes('KNOW BALL Fantasy Draft'));
     assert.ok(html.includes('1 Hint 💡'));
+    assert.ok(html.includes('📋 Casual'));
   });
 
   it('handles optional scrypt auth with email, rejects bad emails/passwords, and supports username or email login', async () => {
