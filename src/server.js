@@ -580,11 +580,15 @@ const RAW_ADSENSE_CLIENT = (process.env.ADSENSE_CLIENT_ID || '').trim();
 const ADSENSE_CLIENT = /^ca-pub-\d+$/i.test(RAW_ADSENSE_CLIENT) ? RAW_ADSENSE_CLIENT : '';
 const RAW_ADSENSE_SLOT = (process.env.ADSENSE_SLOT_ID || '').trim();
 const ADSENSE_SLOT = /^\d+$/.test(RAW_ADSENSE_SLOT) ? RAW_ADSENSE_SLOT : '';
-const APP_JS_HASH = crypto
-  .createHash('sha256')
-  .update(fs.readFileSync(path.join(PUBLIC_DIR, 'app.js')))
-  .digest('hex')
-  .slice(0, 10);
+const APP_JS_HASH = (() => {
+  const hash = crypto.createHash('sha256');
+  const jsDir = path.join(PUBLIC_DIR, 'js');
+  for (const name of fs.readdirSync(jsDir).filter(f => f.endsWith('.js')).sort()) {
+    hash.update(name);
+    hash.update(fs.readFileSync(path.join(jsDir, name)));
+  }
+  return hash.digest('hex').slice(0, 10);
+})();
 
 function buildGaSnippet() {
   if (!GA_ID) return '';
@@ -611,7 +615,7 @@ function renderIndex({ title = null, ogMeta = '' } = {}) {
     .replace('<!--GA_SCRIPT-->', buildGaSnippet())
     .replace('<!--ADSENSE_SCRIPT-->', buildAdsenseHead())
     .replace('<!--ADSENSE_UNIT-->', buildAdsenseUnit())
-    .replace('src="/app.js"', `src="/app.js?v=${APP_JS_HASH}"`);
+    .replace('src="/js/main.js"', `src="/js/main.js?v=${APP_JS_HASH}"`);
   if (title) {
     html = html.replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`);
   }
@@ -673,7 +677,12 @@ app.get('/', (_req, res) => {
   res.send(renderIndex());
 });
 
-app.use(express.static(PUBLIC_DIR, { index: false }));
+app.use(express.static(PUBLIC_DIR, {
+  index: false,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.js')) res.setHeader('Cache-Control', 'no-cache');
+  },
+}));
 
 app.get('/r/:code', (req, res) => {
   const row = db.prepare(`SELECT * FROM runs WHERE short_code = ?`).get(req.params.code);
