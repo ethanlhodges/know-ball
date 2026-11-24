@@ -576,6 +576,11 @@ app.get('/api/challenges/:code', (req, res) => {
 // ==================== STATIC & DYNAMIC SHARE PAGES ====================
 const RAW_GA_ID = (process.env.GA_MEASUREMENT_ID || '').trim();
 const GA_ID = /^G-[A-Z0-9]+$/i.test(RAW_GA_ID) ? RAW_GA_ID : '';
+const APP_JS_HASH = crypto
+  .createHash('sha256')
+  .update(fs.readFileSync(path.join(PUBLIC_DIR, 'app.js')))
+  .digest('hex')
+  .slice(0, 10);
 
 function buildGaSnippet() {
   if (!GA_ID) return '';
@@ -584,7 +589,9 @@ function buildGaSnippet() {
 }
 
 function renderIndex({ title = null, ogMeta = '' } = {}) {
-  let html = INDEX_TEMPLATE().replace('<!--GA_SCRIPT-->', buildGaSnippet());
+  let html = INDEX_TEMPLATE()
+    .replace('<!--GA_SCRIPT-->', buildGaSnippet())
+    .replace('src="/app.js"', `src="/app.js?v=${APP_JS_HASH}"`);
   if (title) {
     html = html.replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`);
   }
@@ -592,6 +599,7 @@ function renderIndex({ title = null, ogMeta = '' } = {}) {
 }
 
 app.get('/', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.send(renderIndex());
 });
 
