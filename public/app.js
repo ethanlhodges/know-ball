@@ -829,6 +829,14 @@ function playSeasonSim(sim, instant = false) {
       tag.className = 'px-2 py-0.5 rounded text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/30';
       verdict.textContent = 'Rough week — run it back!';
     }
+    const dPill = document.getElementById('difficultyPill');
+    if (state.runDifficulty === 'casual') {
+      dPill.textContent = '📋 Casual';
+      dPill.className = 'px-2 py-0.5 rounded text-xs font-black bg-sky-500/15 text-sky-300 border border-sky-500/30';
+    } else {
+      dPill.className = 'hidden';
+    }
+
     const hPill = document.getElementById('hintsUsedPill');
     hPill.classList.remove('hidden');
     if (state.hintsUsed === 0) {
@@ -872,6 +880,9 @@ function renderChrome() {
   const inact = 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]';
   document.getElementById('btnModeDaily').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.mode === 'daily' ? act : inact}`;
   document.getElementById('btnModeUnlimited').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.mode === 'unlimited' ? act : inact}`;
+  document.getElementById('btnDiffPro').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.difficulty === 'pro' ? act : inact}`;
+  document.getElementById('btnDiffCasual').className = `px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${state.difficulty === 'casual' ? 'bg-sky-600 text-white' : inact}`;
+  document.getElementById('btnHint').classList.toggle('hidden', state.difficulty === 'casual');
   document.getElementById('headerSub').textContent = state.mode === 'daily'
     ? `Daily Challenge · ${getTodayUTC()} · Half-PPR`
     : state.mode === 'challenge' ? '1v1 Friend Challenge · Half-PPR' : 'Unlimited Mode · Half-PPR';
@@ -975,9 +986,64 @@ function renderField() {
   } else stackBadge.classList.add('hidden');
 }
 
-// ==================== SEARCH & HINTS ====================
+// ==================== SEARCH, CASUAL POOL & HINTS ====================
+function renderCasualPool(query = '') {
+  const wrap = document.getElementById('casualPoolWrap');
+  if (state.difficulty !== 'casual' || state.spinning || state.round >= 7 || state.pendingPlayer) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  const spin = state.spins[state.round];
+  const pool = POOL_MAP.get(`${spin.teamIdx}-${spin.eraIdx}`) || [];
+  const q = normalizeName(query);
+  const openPos = getEligiblePositions();
+
+  // Filter to eligible open positions + optional search filter, sorted alphabetically (never spoiling PPG!)
+  const eligible = pool.filter(p => openPos.has(p.pos) && canDraftPlayer(p).ok && (!q || p.norm.includes(q)));
+  wrap.classList.remove('hidden');
+  wrap.innerHTML = '';
+
+  if (!eligible.length) {
+    wrap.innerHTML = `<div class="text-xs text-[var(--muted-foreground)] py-1">No eligible players match "${escapeHtml(query)}".</div>`;
+    return;
+  }
+
+  for (const pos of POS_LIST) {
+    if (!openPos.has(pos)) continue;
+    const group = eligible.filter(p => p.pos === pos).sort((a, b) => a.name.localeCompare(b.name));
+    if (!group.length) continue;
+
+    const section = document.createElement('div');
+    section.className = 'space-y-1.5';
+    section.innerHTML = `<div class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[var(--muted-foreground)]">
+      <span class="px-1.5 py-0.2 rounded ${POS_CHIP[pos]}">${pos}</span>
+      <span>${group.length} eligible</span>
+    </div>`;
+
+    const grid = document.createElement('div');
+    grid.className = 'flex flex-wrap gap-1.5';
+    for (const p of group) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const yrTag = p.seasons.length > 1 ? `${p.seasons.length} yrs` : `${p.seasons[0].year}`;
+      btn.className = 'px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:border-emerald-500 hover:bg-emerald-500/10 text-xs font-bold transition cursor-pointer flex items-center gap-1.5';
+      btn.innerHTML = `<span>${escapeHtml(p.name)}</span><span class="text-[10px] text-[var(--muted-foreground)] tabular">${yrTag}</span>`;
+      btn.addEventListener('click', () => selectPlayerForSeason(p));
+      grid.appendChild(btn);
+    }
+    section.appendChild(grid);
+    wrap.appendChild(section);
+  }
+}
+
 function renderSearch(query) {
   const dd = document.getElementById('searchDropdown');
+  if (state.difficulty === 'casual') {
+    dd.classList.add('hidden');
+    state.dropdownMatches = [];
+    renderCasualPool(query);
+    return;
+  }
   if (state.spinning || state.round >= 7 || state.pendingPlayer) { dd.classList.add('hidden'); return; }
   const spin = state.spins[state.round];
   const pool = POOL_MAP.get(`${spin.teamIdx}-${spin.eraIdx}`) || [];
