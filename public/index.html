@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KNOW BALL — All-Time Fantasy Football Draft</title>
+  <meta name="description" content="KNOW BALL is a daily NFL fantasy football draft game. Spin historical franchises and era windows (1999–2025), pick exact seasons, build QB+WR/TE stacks, and chase 17-0 across real weekly game logs." />
+  <link rel="canonical" href="https://knowball.app/" />
   <!--OG_META-->
   <!--GA_SCRIPT-->
+  <!--ADSENSE_SCRIPT-->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -364,6 +367,35 @@
       <div id="inspectorText" class="font-medium"></div>
       <button id="btnCloseInspector" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-bold cursor-pointer">Dismiss</button>
     </div>
+
+    <!-- AdSense Below-Field Slot (renders only when ADSENSE_CLIENT_ID & ADSENSE_SLOT_ID are set) -->
+    <!--ADSENSE_UNIT-->
+
+    <!-- Compact Editorial Guide & FAQ (for players + search/AdSense crawlers) -->
+    <section class="pt-4 border-t border-[var(--border)] space-y-4 text-xs text-[var(--muted-foreground)] leading-relaxed">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3.5 space-y-1">
+          <h2 class="text-xs font-black uppercase tracking-wider text-[var(--foreground)]">How KNOW BALL Works</h2>
+          <p>Each round spins an NFL franchise and an era window from <strong>1999–2025</strong>. Draft 7 Half-PPR starters (<code>QB, 2 RB, 2 WR, TE, FLEX</code>) and pick the exact season you want from that window—then watch your squad play a 17-week season using real historical weekly game logs.</p>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3.5 space-y-1">
+          <h2 class="text-xs font-black uppercase tracking-wider text-[var(--foreground)]">Stacks, Injuries &amp; Grades</h2>
+          <p>Pair your QB with a WR or TE from the same franchise &amp; era for <strong>+2.5 PPG/wk</strong>, or the exact same season for <strong>+4.0 PPG/wk</strong>. Injury-shortened seasons plug in realistic waiver fill-in weeks, and every pick is graded <strong>S–F</strong> against the best open options on that spin.</p>
+        </div>
+        <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3.5 space-y-1">
+          <h2 class="text-xs font-black uppercase tracking-wider text-[var(--foreground)]">Daily, Pro/Casual &amp; 1v1s</h2>
+          <p>Everyone gets the same 7 spins and 17-week opponent schedule in the <strong>Daily Challenge</strong>. Play <strong>Pro</strong> (type from memory) or <strong>Casual</strong> (browse eligible players alphabetically), compare crowd pick percentages, and challenge friends head-to-head on the exact same board.</p>
+        </div>
+      </div>
+
+      <footer class="flex flex-wrap items-center justify-between gap-2 pb-4 text-[11px] text-[var(--muted-foreground)]">
+        <span>© KNOW BALL (<a href="https://knowball.app" class="hover:text-[var(--foreground)] underline">knowball.app</a>) · Independent fantasy football trivia game, not affiliated with the NFL.</span>
+        <div class="flex items-center gap-3">
+          <a href="/privacy" class="hover:text-[var(--foreground)] underline">Privacy Policy</a>
+          <a href="/ads.txt" class="hover:text-[var(--foreground)] underline">ads.txt</a>
+        </div>
+      </footer>
+    </section>
   </div>
 
   <!-- Daily Leaderboard & Crowd Picks Modal -->

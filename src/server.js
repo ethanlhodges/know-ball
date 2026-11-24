@@ -576,6 +576,10 @@ app.get('/api/challenges/:code', (req, res) => {
 // ==================== STATIC & DYNAMIC SHARE PAGES ====================
 const RAW_GA_ID = (process.env.GA_MEASUREMENT_ID || '').trim();
 const GA_ID = /^G-[A-Z0-9]+$/i.test(RAW_GA_ID) ? RAW_GA_ID : '';
+const RAW_ADSENSE_CLIENT = (process.env.ADSENSE_CLIENT_ID || '').trim();
+const ADSENSE_CLIENT = /^ca-pub-\d+$/i.test(RAW_ADSENSE_CLIENT) ? RAW_ADSENSE_CLIENT : '';
+const RAW_ADSENSE_SLOT = (process.env.ADSENSE_SLOT_ID || '').trim();
+const ADSENSE_SLOT = /^\d+$/.test(RAW_ADSENSE_SLOT) ? RAW_ADSENSE_SLOT : '';
 const APP_JS_HASH = crypto
   .createHash('sha256')
   .update(fs.readFileSync(path.join(PUBLIC_DIR, 'app.js')))
@@ -588,15 +592,81 @@ function buildGaSnippet() {
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');</script>`;
 }
 
+function buildAdsenseHead() {
+  if (!ADSENSE_CLIENT) return '';
+  return `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>`;
+}
+
+function buildAdsenseUnit() {
+  if (!ADSENSE_CLIENT || !ADSENSE_SLOT) return '';
+  return `<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-2 text-center overflow-hidden">
+    <div class="text-[10px] uppercase tracking-widest text-[var(--muted-foreground)] mb-1">Advertisement</div>
+    <ins class="adsbygoogle" style="display:block" data-ad-client="${ADSENSE_CLIENT}" data-ad-slot="${ADSENSE_SLOT}" data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>`;
+}
+
 function renderIndex({ title = null, ogMeta = '' } = {}) {
   let html = INDEX_TEMPLATE()
     .replace('<!--GA_SCRIPT-->', buildGaSnippet())
+    .replace('<!--ADSENSE_SCRIPT-->', buildAdsenseHead())
+    .replace('<!--ADSENSE_UNIT-->', buildAdsenseUnit())
     .replace('src="/app.js"', `src="/app.js?v=${APP_JS_HASH}"`);
   if (title) {
     html = html.replace('<title>KNOW BALL — All-Time Fantasy Football Draft</title>', `<title>${escapeAttr(title)}</title>`);
   }
   return html.replace('<!--OG_META-->', ogMeta);
 }
+
+app.get('/ads.txt', (_req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  if (!ADSENSE_CLIENT) {
+    return res.send('# Set ADSENSE_CLIENT_ID=ca-pub-XXXXXXXXXXXXXXXX in Railway Variables to populate ads.txt\n');
+  }
+  const pubId = ADSENSE_CLIENT.replace(/^ca-/i, '');
+  res.send(`google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
+});
+
+app.get('/privacy', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — KNOW BALL</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0b0f17] text-slate-100 antialiased min-h-screen">
+  <main class="max-w-2xl mx-auto px-5 py-10 space-y-6 text-sm text-slate-300 leading-relaxed">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div class="flex items-center gap-2.5">
+        <a href="/" class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-sm">KNOW BALL</a>
+        <h1 class="text-lg font-black text-white">Privacy Policy</h1>
+      </div>
+      <a href="/" class="text-xs font-bold text-sky-400 hover:underline">← Back to Game</a>
+    </div>
+    <p class="text-xs text-slate-400">Effective Date: November 24, 2026 · Domain: knowball.app</p>
+    <section class="space-y-2">
+      <h2 class="text-base font-bold text-white">1. Information We Collect</h2>
+      <p>KNOW BALL can be played completely without an account. We use an anonymous <code>HttpOnly</code> browser cookie to save your completed drafts, Daily Challenge streaks, and Hall of Fame locally on our server. If you optionally create an account, we store your chosen username, email address, and a salted <code>scrypt</code> hash of your password (we never store plaintext passwords). Emails are never displayed publicly.</p>
+    </section>
+    <section class="space-y-2">
+      <h2 class="text-base font-bold text-white">2. Analytics &amp; Advertising</h2>
+      <p>We use Google Analytics 4 to understand aggregate site traffic and gameplay trends. We may also display advertisements through Google AdSense. Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to this website or other websites. You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" class="text-sky-400 underline" target="_blank" rel="noopener">Google Ads Settings</a> or <a href="https://www.aboutads.info/choices/" class="text-sky-400 underline" target="_blank" rel="noopener">aboutads.info</a>.</p>
+    </section>
+    <section class="space-y-2">
+      <h2 class="text-base font-bold text-white">3. Public Leaderboards &amp; Shared Links</h2>
+      <p>Completed Daily Challenge runs may appear on the public Daily Leaderboard alongside your username (or "Guest" if playing anonymously). Shareable result links (<code>/r/...</code>) and 1v1 challenge links (<code>/c/...</code>) are publicly viewable by anyone with the link.</p>
+    </section>
+    <section class="space-y-2">
+      <h2 class="text-base font-bold text-white">4. Disclaimer</h2>
+      <p>KNOW BALL (knowball.app) is an independent fantasy football trivia game and is not affiliated with, endorsed by, or sponsored by the National Football League (NFL) or any of its teams.</p>
+    </section>
+  </main>
+</body>
+</html>`);
+});
 
 app.get('/', (_req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
@@ -639,5 +709,5 @@ app.get('/c/:code', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🏈 KNOW BALL (Fantasy Draft) listening on http://0.0.0.0:${PORT} (DB: ${DB_PATH}, ${PLAYERS_COUNT} player-era entries, GA4: ${GA_ID || 'off'})`);
+  console.log(`🏈 KNOW BALL (Fantasy Draft) listening on http://0.0.0.0:${PORT} (DB: ${DB_PATH}, ${PLAYERS_COUNT} player-era entries, GA4: ${GA_ID || 'off'}, AdSense: ${ADSENSE_CLIENT || 'off'})`);
 });

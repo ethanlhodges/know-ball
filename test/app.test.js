@@ -57,7 +57,7 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     }
     srv = spawn('node', ['--no-warnings=ExperimentalWarning', 'src/server.js'], {
       cwd: path.join(__dirname, '..'),
-      env: { ...process.env, PORT: String(TEST_PORT), DB_PATH: TEST_DB, GA_MEASUREMENT_ID: 'G-TEST12345' },
+      env: { ...process.env, PORT: String(TEST_PORT), DB_PATH: TEST_DB, GA_MEASUREMENT_ID: 'G-TEST12345', ADSENSE_CLIENT_ID: 'ca-pub-1234567890123456' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     for (let i = 0; i < 40; i++) {
@@ -77,12 +77,17 @@ describe('KNOW BALL — Server API, Auth, Crowd Picks & Round Alignment', () => 
     }
   });
 
-  it('serves /api/health, /api/players, and injects GA4 gtag on /', async () => {
+  it('serves /api/health, /api/players, GA4, AdSense, /ads.txt, and /privacy', async () => {
     const h = await (await fetch(`${BASE}/api/health`)).json();
     assert.equal(h.ok, true);
     assert.ok(h.players > 3000);
     const home = await (await fetch(`${BASE}/`)).text();
     assert.ok(home.includes('googletagmanager.com/gtag/js?id=G-TEST12345'));
+    assert.ok(home.includes('pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890123456'));
+    const adsTxt = await (await fetch(`${BASE}/ads.txt`)).text();
+    assert.equal(adsTxt.trim(), 'google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0');
+    const priv = await fetch(`${BASE}/privacy`);
+    assert.equal(priv.status, 200);
   });
 
   it('persists anonymous runs in Half-PPR, tracks hints, and preserves exact draft round order', async () => {
