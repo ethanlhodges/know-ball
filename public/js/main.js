@@ -950,13 +950,40 @@ function flashToast(msg = 'Copied!') {
   setTimeout(() => el.classList.add('hidden'), 2200);
 }
 
-function copyShareLink() {
-  const url = state.lastSavedCode ? `${window.location.origin}/r/${state.lastSavedCode}` : window.location.href;
-  trackEvent('share_clicked', { method: 'link', mode: state.mode });
-  navigator.clipboard.writeText(url).then(() => flashToast('Share link copied!'));
+async function copyTextFallback(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_) {}
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (_) {
+    return false;
+  }
 }
 
-function copyShareCard() {
+async function copyShareLink() {
+  const url = state.lastSavedCode ? `${window.location.origin}/r/${state.lastSavedCode}` : window.location.href;
+  trackEvent('share_clicked', { method: 'link', mode: state.mode });
+  if (await copyTextFallback(url)) {
+    flashToast('Share link copied!');
+  } else {
+    window.prompt('Copy your share link:', url);
+  }
+}
+
+async function copyShareCard() {
   const sim = state.lastSim;
   if (!sim) return;
   const tag = state.mode === 'daily' ? `Daily ${getTodayUTC()}` : 'Unlimited';
@@ -973,19 +1000,53 @@ function copyShareCard() {
     link || null,
   ].filter(Boolean).join('\n');
   trackEvent('share_clicked', { method: 'text', mode: state.mode });
-  navigator.clipboard.writeText(text).then(() => flashToast('Text card copied!'));
+  if (await copyTextFallback(text)) {
+    flashToast('Text card copied!');
+  } else {
+    window.prompt('Copy your text card:', text);
+  }
 }
 
 async function createChallengeLink() {
-  if (!state.lastSavedCode) return;
+  if (!state.lastSavedCode) {
+    flashToast('Saving run — try again in a second!');
+    return;
+  }
+  const urlPromise = api('/api/challenges', {
+    method: 'POST',
+    body: JSON.stringify({ shortCode: state.lastSavedCode }),
+  }).then(res => `${window.location.origin}/c/${res.code}`);
+
+  // Invoke clipboard.write synchronously with a Promise-backed ClipboardItem so Safari/iOS keeps user-gesture activation
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      const item = new ClipboardItem({
+        'text/plain': urlPromise.then(url => new Blob([url], { type: 'text/plain' })),
+      });
+      await navigator.clipboard.write([item]);
+      await urlPromise;
+      trackEvent('share_clicked', { method: 'challenge', mode: state.mode });
+      flashToast('1v1 Challenge link copied!');
+      return;
+    } catch (_) {
+      // Fall through to handle API error or fallback copy method
+    }
+  }
+
   try {
-    const res = await api('/api/challenges', { method: 'POST', body: JSON.stringify({ shortCode: state.lastSavedCode }) });
-    const url = `${window.location.origin}/c/${res.code}`;
+    const url = await urlPromise;
     trackEvent('share_clicked', { method: 'challenge', mode: state.mode });
-    await navigator.clipboard.writeText(url);
-    flashToast('1v1 Challenge link copied!');
+    if (await copyTextFallback(url)) {
+      flashToast('1v1 Challenge link copied!');
+    } else if (navigator.share) {
+      await navigator.share({ title: 'KNOW BALL 1v1 Challenge', url });
+    } else {
+      window.prompt('Copy your 1v1 Challenge link:', url);
+    }
   } catch (err) {
-    flashToast(err.message);
+    if (err?.name !== 'AbortError') {
+      flashToast(err.message || 'Could not create challenge link.');
+    }
   }
 }
 
