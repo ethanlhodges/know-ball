@@ -546,30 +546,75 @@ app.post('/api/challenges', runLimiter, (req, res) => {
   res.status(201).json({ code });
 });
 
+function buildChallengeEntry(row, creatorRunId) {
+  const hydrated = hydrateRun(row);
+  return {
+    shortCode: hydrated.shortCode,
+    displayName: hydrated.displayName,
+    isAccount: hydrated.isAccount,
+    isCreator: row.id === creatorRunId,
+    wins: hydrated.wins,
+    losses: hydrated.losses,
+    avgPPG: hydrated.avgPPG,
+    optPct: hydrated.optPct,
+    hintsUsed: hydrated.hintsUsed,
+    difficulty: hydrated.difficulty,
+    roster: hydrated.roster,
+    picksByRound: hydrated.picksByRound,
+    createdAt: hydrated.createdAt,
+  };
+}
+
 app.get('/api/challenges/:code', (req, res) => {
   const ch = db.prepare(`
-    SELECT c.code, c.spins_json, c.scoring, r.short_code AS creator_code, r.display_name AS creator_name,
-           r.wins AS creator_wins, r.losses AS creator_losses, r.avg_ppg AS creator_ppg, r.roster_json AS creator_roster
+    SELECT c.code, c.creator_run_id, c.spins_json, c.scoring,
+           r.display_name AS creator_name, r.user_id AS creator_user_id, r.anon_id AS creator_anon_id
     FROM challenges c
     JOIN runs r ON r.id = c.creator_run_id
     WHERE c.code = ?
   `).get(req.params.code);
   if (!ch) return res.status(404).json({ error: 'Challenge not found.' });
 
-  const reveal = req.query.reveal === '1';
+  const whereMe = req.user ? `user_id = ?` : `anon_id = ?`;
+  const paramMe = req.user ? req.user.id : req.anonId;
+  const isCreator = req.user
+    ? ch.creator_user_id === req.user.id
+    : (!!req.anonId && ch.creator_anon_id === req.anonId);
+
+  const creatorRow = db.prepare(`SELECT * FROM runs WHERE id = ?`).get(ch.creator_run_id);
+  const viewerRunRow = isCreator
+    ? creatorRow
+    : (paramMe
+        ? db.prepare(`SELECT * FROM runs WHERE ${whereMe} AND challenge_code = ? ORDER BY created_at DESC LIMIT 1`).get(paramMe, ch.code)
+        : null);
+
+  const totalEntries = db.prepare(
+    `SELECT COUNT(*) AS c FROM runs WHERE id = ? OR challenge_code = ?`
+  ).get(ch.creator_run_id, ch.code).c;
+
+  const reveal = req.query.reveal === '1' || !!viewerRunRow;
+  let leaderboard = [];
+  if (reveal) {
+    const lbRows = db.prepare(`
+      SELECT * FROM runs
+      WHERE id = ? OR challenge_code = ?
+      ORDER BY wins DESC, avg_ppg DESC, created_at ASC
+      LIMIT 50
+    `).all(ch.creator_run_id, ch.code);
+    leaderboard = lbRows.map(r => buildChallengeEntry(r, ch.creator_run_id));
+  }
+
   res.json({
     code: ch.code,
     spins: JSON.parse(ch.spins_json),
     scoring: ch.scoring,
     creatorName: ch.creator_name,
-    creator: reveal ? {
-      shortCode: ch.creator_code,
-      displayName: ch.creator_name,
-      wins: ch.creator_wins,
-      losses: ch.creator_losses,
-      avgPPG: ch.creator_ppg,
-      roster: JSON.parse(ch.creator_roster),
-    } : null,
+    isCreator,
+    totalEntries,
+    creator: reveal && creatorRow ? buildChallengeEntry(creatorRow, ch.creator_run_id) : null,
+    leaderboard,
+    viewerRun: viewerRunRow ? hydrateRun(viewerRunRow) : null,
+    viewerCrowd: viewerRunRow ? computeCrowdStats(viewerRunRow) : null,
   });
 });
 

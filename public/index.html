@@ -294,6 +294,25 @@
           <span id="copyToast" class="hidden text-xs font-bold text-emerald-400">Copied!</span>
         </div>
 
+        <!-- 1v1 Side-by-Side Picks & Challenge Leaderboard (shown for /c/:code challenges) -->
+        <div id="challengePanel" class="hidden space-y-4">
+          <div id="h2hPicksWrap" class="hidden space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span id="h2hPicksTitle" class="font-extrabold uppercase tracking-wider text-amber-300">⚔️ Side-by-Side Picks</span>
+              <span id="h2hPicksDelta" class="font-bold tabular text-[var(--muted-foreground)]"></span>
+            </div>
+            <div id="h2hPicksList" class="divide-y divide-[var(--border)] rounded-xl border border-amber-400/30 bg-[var(--content)] px-3.5 text-xs"></div>
+          </div>
+
+          <div id="challengeLbWrap" class="hidden space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">🏆 Challenge Leaderboard</span>
+              <span id="challengeLbMeta" class="font-bold tabular text-[var(--muted-foreground)]"></span>
+            </div>
+            <div id="challengeLbList" class="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--content)] px-3.5 text-xs"></div>
+          </div>
+        </div>
+
         <div class="space-y-2">
           <div class="flex items-center justify-between text-xs">
             <span class="font-extrabold uppercase tracking-wider text-[var(--muted-foreground)]">Your Picks · Crowd Pick % · Optimal Board</span>

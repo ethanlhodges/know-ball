@@ -129,6 +129,7 @@ function startDraft(mode = state.mode, opts = {}) {
   document.getElementById('draftConsole').classList.remove('hidden');
   document.getElementById('simStage').classList.add('hidden');
   document.getElementById('h2hBanner').classList.add('hidden');
+  document.getElementById('challengePanel').classList.add('hidden');
   document.getElementById('hintDrawer').classList.add('hidden');
   document.getElementById('yearPickerWrap').classList.add('hidden');
   document.getElementById('searchWrap').classList.remove('hidden');
@@ -412,7 +413,8 @@ async function finishAndPersistDraft() {
       if (state.mode === 'challenge' && state.challengeCode) {
         try {
           const rev = await api(`/api/challenges/${state.challengeCode}?reveal=1`);
-          renderH2H(rev.creator, sim);
+          state.challengeMeta = rev;
+          renderChallengePanel(rev, sim);
         } catch (_) {}
       }
       renderCrowdOverlay();
@@ -422,17 +424,192 @@ async function finishAndPersistDraft() {
   playSeasonSim(sim, false);
 }
 
-function renderH2H(creator, mySim) {
-  if (!creator) return;
+function resolveEntryPicksByRound(entry, spins) {
+  const roster = Array.isArray(entry?.roster) ? entry.roster : [];
+  const pbr = Array.isArray(entry?.picksByRound) ? entry.picksByRound : [];
+  const used = new Set();
+  return spins.map((spin, rIdx) => {
+    const pk = pbr[rIdx];
+    let matchIdx = -1;
+    if (pk) {
+      matchIdx = roster.findIndex((p, idx) => !used.has(idx) && p && p.name === pk.playerName && p.year === pk.playerYear);
+    }
+    if (matchIdx === -1) {
+      matchIdx = roster.findIndex((p, idx) => !used.has(idx) && p && p.teamIdx === spin.teamIdx && p.eraIdx === spin.eraIdx);
+    }
+    if (matchIdx === -1) {
+      matchIdx = roster.findIndex((p, idx) => !used.has(idx) && p);
+    }
+    if (matchIdx >= 0) {
+      used.add(matchIdx);
+      return roster[matchIdx];
+    }
+    return pk ? { name: pk.playerName, year: pk.playerYear, pos: pk.pos } : null;
+  });
+}
+
+function renderH2H(opponent, mySim) {
   const banner = document.getElementById('h2hBanner');
+  if (!opponent || !mySim) {
+    banner.classList.add('hidden');
+    return;
+  }
   banner.classList.remove('hidden');
-  const beat = mySim.wins > creator.wins || (mySim.wins === creator.wins && mySim.avgPPG > creator.avgPPG);
-  const tie = mySim.wins === creator.wins && Math.abs(mySim.avgPPG - creator.avgPPG) < 0.05;
+  const beat = mySim.wins > opponent.wins || (mySim.wins === opponent.wins && mySim.avgPPG > opponent.avgPPG);
+  const tie = mySim.wins === opponent.wins && Math.abs(mySim.avgPPG - opponent.avgPPG) < 0.05;
+  const oppLabel = `${opponent.isAccount ? '@' : ''}${opponent.displayName}`;
   document.getElementById('h2hSummary').textContent =
-    `⚔️ 1v1 vs. ${creator.displayName}: YOU ${mySim.wins}-${mySim.losses} (${mySim.avgPPG.toFixed(1)}) vs. ${creator.displayName} ${creator.wins}-${creator.losses} (${creator.avgPPG.toFixed(1)})`;
+    `⚔️ 1v1 vs. ${oppLabel}: YOU ${mySim.wins}-${mySim.losses} (${mySim.avgPPG.toFixed(1)}) vs. ${oppLabel} ${opponent.wins}-${opponent.losses} (${opponent.avgPPG.toFixed(1)})`;
   const v = document.getElementById('h2hVerdict');
-  v.textContent = tie ? 'TIE GAME!' : beat ? 'YOU KNOW MORE BALL!' : `${creator.displayName} KNOWS MORE BALL`;
-  v.className = `px-2.5 py-1 rounded-lg font-black text-xs ${beat ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500/20 text-rose-300'}`;
+  v.textContent = tie ? 'TIE GAME!' : beat ? 'YOU KNOW MORE BALL!' : `${opponent.displayName} KNOWS MORE BALL`;
+  v.className = `px-2.5 py-1 rounded-lg font-black text-xs ${tie ? 'bg-amber-500/20 text-amber-300' : beat ? 'bg-emerald-500 text-slate-950' : 'bg-rose-500/20 text-rose-300'}`;
+}
+
+function renderSideBySidePicks(opponent, mySim) {
+  const wrap = document.getElementById('h2hPicksWrap');
+  const list = document.getElementById('h2hPicksList');
+  if (!opponent || !state.picksByRound.length) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  const oppLabel = `${opponent.isAccount ? '@' : ''}${opponent.displayName}`;
+  const oppPicks = resolveEntryPicksByRound(opponent, state.spins);
+
+  let myWonRounds = 0;
+  let oppWonRounds = 0;
+  let sameCount = 0;
+
+  list.innerHTML = state.picksByRound.map((pick, i) => {
+    const team = TEAMS[pick.spin.teamIdx];
+    const era = ERA_LIST[pick.spin.eraIdx];
+    const myP = pick.player;
+    const myPPG = Number(myP?.[state.scoring] ?? 0);
+    const oppP = oppPicks[i];
+    const oppPPG = Number(oppP?.[state.scoring] ?? 0);
+    const isSame = oppP && myP && oppP.name === myP.name && oppP.year === myP.year;
+    if (isSame) sameCount++;
+    else if (myPPG > oppPPG + 0.05) myWonRounds++;
+    else if (oppPPG > myPPG + 0.05) oppWonRounds++;
+
+    const myWin = !isSame && myPPG > oppPPG + 0.05;
+    const oppWin = !isSame && oppPPG > myPPG + 0.05;
+
+    return `
+      <div class="py-2.5 grid grid-cols-1 sm:grid-cols-[120px_1fr_1fr] items-center gap-2">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-black text-white shrink-0" style="background:${team.color}">${team.id}</span>
+          <span class="text-[11px] font-bold text-[var(--muted-foreground)] tabular truncate">${era}</span>
+          ${isSame ? '<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black shrink-0">SAME</span>' : ''}
+        </div>
+        <div class="flex items-center justify-between gap-2 rounded-lg px-2 py-1 ${myWin ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-[var(--card)]/60 border border-[var(--border)]'}">
+          <div class="min-w-0 truncate">
+            <span class="text-[10px] font-black uppercase text-[var(--muted-foreground)] mr-1">You</span>
+            <span class="font-bold ${myWin ? 'text-emerald-300' : ''}">${escapeHtml(myP.name)}</span>
+            <span class="text-[var(--muted-foreground)] tabular">’${String(myP.year).slice(-2)}</span>
+          </div>
+          <span class="font-black tabular shrink-0 ${myWin ? 'text-emerald-400' : 'text-[var(--muted-foreground)]'}">${myPPG.toFixed(1)}</span>
+        </div>
+        <div class="flex items-center justify-between gap-2 rounded-lg px-2 py-1 ${oppWin ? 'bg-rose-500/10 border border-rose-500/30' : 'bg-[var(--card)]/60 border border-[var(--border)]'}">
+          <div class="min-w-0 truncate">
+            <span class="text-[10px] font-black uppercase text-[var(--muted-foreground)] mr-1">${escapeHtml(opponent.displayName)}</span>
+            <span class="font-bold ${oppWin ? 'text-rose-300' : ''}">${oppP ? escapeHtml(oppP.name) : '—'}</span>
+            ${oppP?.year ? `<span class="text-[var(--muted-foreground)] tabular">’${String(oppP.year).slice(-2)}</span>` : ''}
+          </div>
+          <span class="font-black tabular shrink-0 ${oppWin ? 'text-rose-400' : 'text-[var(--muted-foreground)]'}">${oppP ? oppPPG.toFixed(1) : '—'}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('h2hPicksTitle').textContent = `⚔️ Side-by-Side Picks · You vs. ${oppLabel}`;
+  const ppgDiff = mySim.avgPPG - opponent.avgPPG;
+  const diffStr = `${ppgDiff >= 0 ? '+' : ''}${ppgDiff.toFixed(1)} PPG`;
+  document.getElementById('h2hPicksDelta').textContent =
+    `Rounds won: ${myWonRounds}-${oppWonRounds}${sameCount ? ` (${sameCount} same)` : ''} · ${diffStr}`;
+}
+
+function renderChallengeLeaderboard(ch, activeCompareCode) {
+  const wrap = document.getElementById('challengeLbWrap');
+  const list = document.getElementById('challengeLbList');
+  const meta = document.getElementById('challengeLbMeta');
+  const entries = Array.isArray(ch?.leaderboard) ? ch.leaderboard : [];
+  if (!entries.length) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  meta.textContent = `${entries.length} ${entries.length === 1 ? 'player' : 'players'} · ${ch.scoring.toUpperCase()}`;
+
+  list.innerHTML = entries.map((e, idx) => {
+    const isMe = e.shortCode === state.lastSavedCode;
+    const isComparing = e.shortCode === activeCompareCode;
+    const rankIcon = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+    const nameLabel = `${e.isAccount ? '@' : ''}${e.displayName}`;
+    const diffBadge = e.difficulty === 'casual'
+      ? '<span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 text-[10px] font-bold">Casual</span>'
+      : '';
+    const hintBadge = e.hintsUsed > 0
+      ? `<span class="text-[10px] text-amber-400 font-bold" title="${e.hintsUsed} hints used">💡${e.hintsUsed}</span>`
+      : '';
+
+    return `
+      <div class="py-2.5 flex flex-wrap items-center justify-between gap-2 ${isMe ? 'bg-emerald-500/5 -mx-3.5 px-3.5' : ''}">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-6 text-center font-black tabular shrink-0">${rankIcon}</span>
+          <span class="font-bold truncate ${isMe ? 'text-emerald-300' : ''}">${escapeHtml(nameLabel)}</span>
+          ${e.isCreator ? '<span class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/30 text-[10px] font-black">HOST</span>' : ''}
+          ${isMe ? '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-black">YOU</span>' : ''}
+          ${diffBadge}
+          ${hintBadge}
+        </div>
+        <div class="flex items-center gap-2.5 tabular">
+          <span class="font-black text-sm">${e.wins}-${e.losses}</span>
+          <span class="text-[var(--muted-foreground)] font-semibold">${e.avgPPG.toFixed(1)} PPG</span>
+          <span class="hidden sm:inline text-[11px] text-[var(--muted-foreground)]">${e.optPct.toFixed(0)}% Opt</span>
+          ${!isMe
+            ? `<button data-compare="${escapeHtml(e.shortCode)}" class="px-2 py-1 rounded-lg border text-[11px] font-bold transition cursor-pointer ${isComparing ? 'border-amber-400 bg-amber-500/20 text-amber-300' : 'border-[var(--border)] bg-[var(--card)] hover:bg-[var(--background)] text-[var(--foreground)]'}">${isComparing ? 'Comparing' : 'Compare'}</button>`
+            : ''}
+          <a href="/r/${encodeURIComponent(e.shortCode)}" class="text-[11px] font-bold text-[var(--link)] hover:underline">View</a>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (entries.length === 1) {
+    list.innerHTML += `<div class="py-2.5 text-[11px] text-[var(--muted-foreground)]">No challengers yet — share your <span class="font-mono text-amber-300">/c/${escapeHtml(ch.code)}</span> link so friends can draft this exact board!</div>`;
+  }
+
+  list.querySelectorAll('button[data-compare]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.getAttribute('data-compare');
+      const target = entries.find(item => item.shortCode === code);
+      if (target && state.lastSim) {
+        renderH2H(target, state.lastSim);
+        renderSideBySidePicks(target, state.lastSim);
+        renderChallengeLeaderboard(ch, target.shortCode);
+      }
+    });
+  });
+}
+
+function renderChallengePanel(ch, mySim) {
+  const panel = document.getElementById('challengePanel');
+  if (!ch || !mySim) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+
+  const entries = Array.isArray(ch.leaderboard) ? ch.leaderboard : [];
+  let defaultOpp = null;
+  if (ch.creator && ch.creator.shortCode !== state.lastSavedCode) {
+    defaultOpp = ch.creator;
+  } else {
+    defaultOpp = entries.find(e => e.shortCode !== state.lastSavedCode) || null;
+  }
+
+  renderH2H(defaultOpp, mySim);
+  renderSideBySidePicks(defaultOpp, mySim);
+  renderChallengeLeaderboard(ch, defaultOpp ? defaultOpp.shortCode : null);
 }
 
 function renderCrowdOverlay() {
@@ -1092,6 +1269,8 @@ function displaySavedRun(run, crowd, bannerMsg = null) {
     wins: run.wins, losses: run.losses, avgPPG: run.avgPPG, basePPG: run.basePPG,
     stackBonus: run.stackBonus, optPct: run.optPct, optimal, weeks: run.weeks,
   };
+  document.getElementById('h2hBanner').classList.add('hidden');
+  document.getElementById('challengePanel').classList.add('hidden');
   if (bannerMsg) {
     document.getElementById('contextBanner').classList.remove('hidden');
     document.getElementById('contextBannerText').textContent = bannerMsg;
@@ -1266,8 +1445,20 @@ async function boot() {
   if (chMatch) {
     try {
       const ch = await api(`/api/challenges/${chMatch[1]}`);
+      if (ch.viewerRun) {
+        const banner = ch.isCreator
+          ? `⚔️ Your 1v1 Challenge Board (${ch.totalEntries} ${ch.totalEntries === 1 ? 'player' : 'players'} · ${ch.scoring.toUpperCase()})`
+          : `⚔️ Completed 1v1 Challenge vs. ${ch.creatorName} (${ch.totalEntries} ${ch.totalEntries === 1 ? 'player' : 'players'} · ${ch.scoring.toUpperCase()})`;
+        displaySavedRun(ch.viewerRun, ch.viewerCrowd, banner);
+        state.challengeCode = ch.code;
+        state.challengeMeta = ch;
+        renderChallengePanel(ch, state.lastSim);
+        return;
+      }
       document.getElementById('contextBanner').classList.remove('hidden');
-      document.getElementById('contextBannerText').textContent = `⚔️ 1v1 Challenge from ${ch.creatorName} — Draft these exact 7 spins (${ch.scoring.toUpperCase()}, no rerolls)!`;
+      const countNote = ch.totalEntries > 1 ? ` · ${ch.totalEntries} players on board` : '';
+      document.getElementById('contextBannerText').textContent =
+        `⚔️ 1v1 Challenge from ${ch.creatorName}${countNote} — Draft these exact 7 spins (${ch.scoring.toUpperCase()}, no rerolls)!`;
       startDraft('challenge', { fixedSpins: ch.spins, scoring: ch.scoring, challengeCode: ch.code, challengeMeta: ch });
       return;
     } catch (_) {}
