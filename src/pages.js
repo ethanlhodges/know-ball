@@ -58,9 +58,9 @@ function posBadge(pos) {
 
 function renderLayout({ title, description, canonicalPath, activeNav = '', bodyHtml, gaSnippet = '', adsenseHead = '' }) {
   const navLinks = [
-    { href: '/', label: 'Play Game', key: 'play' },
+    { href: '/', label: 'Play', key: 'play' },
     { href: '/how-to-play', label: 'How to Play', key: 'how-to-play' },
-    { href: '/records', label: 'All-Time Records', key: 'records' },
+    { href: '/records', label: 'Records', key: 'records' },
     { href: '/about', label: 'About', key: 'about' },
   ];
   return `<!DOCTYPE html>
@@ -80,38 +80,46 @@ function renderLayout({ title, description, canonicalPath, activeNav = '', bodyH
   <script src="https://cdn.tailwindcss.com"></script>
   <style>.tabular { font-variant-numeric: tabular-nums; }</style>
 </head>
-<body class="bg-[#0b0f17] text-slate-100 antialiased min-h-screen flex flex-col">
-  <header class="border-b border-[#263248] bg-[#131a26]/90 backdrop-blur sticky top-0 z-20">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-      <a href="/" class="flex items-center gap-2 font-black tracking-tight text-base text-white">
-        <span class="text-lg">🏈</span>
-        <span>KNOW BALL</span>
+<body class="bg-[#0b0f17] text-[#f1f5f9] antialiased min-h-screen">
+  <div class="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-6">
+
+    <!-- Broadcast Header (matches homepage) -->
+    <header class="flex flex-wrap items-center justify-between gap-2.5">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <div class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-base tracking-tight shadow-sm group-hover:bg-emerald-500 transition">
+          KNOW BALL
+        </div>
+        <div class="leading-tight">
+          <div class="text-sm sm:text-base font-extrabold tracking-tight text-[#f1f5f9]">ALL-TIME FANTASY DRAFT</div>
+          <div class="text-xs text-[#94a3b8]">Chase 17-0 · 1999–2025 NFL Game Logs</div>
+        </div>
       </a>
-      <nav class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs font-bold">
-        ${navLinks.map(n => `
-          <a href="${n.href}" class="px-3 py-1.5 rounded-lg transition ${activeNav === n.key ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-300 hover:text-white hover:bg-[#1a2333]'}">${n.label}</a>
-        `).join('')}
+
+      <nav class="flex flex-wrap items-center gap-1.5">
+        <div class="inline-flex rounded-lg border border-[#263248] bg-[#131a26] p-0.5 text-xs">
+          ${navLinks.map(n => `
+            <a href="${n.href}" class="px-2.5 py-1 rounded-md font-bold transition ${activeNav === n.key ? 'bg-emerald-600 text-white' : 'text-[#94a3b8] hover:text-[#f1f5f9]'}">${n.label}</a>
+          `).join('')}
+        </div>
       </nav>
-    </div>
-  </header>
+    </header>
 
-  <main class="max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 flex-1 space-y-8 text-sm text-slate-300 leading-relaxed">
-    ${bodyHtml}
-  </main>
+    <main class="space-y-6 text-sm text-slate-300 leading-relaxed pt-2">
+      ${bodyHtml}
+    </main>
 
-  <footer class="border-t border-[#263248] bg-[#131a26]/60 mt-10">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-      <span>© KNOW BALL (<a href="${SITE_ORIGIN}" class="underline hover:text-white">knowball.app</a>) · Independent fantasy football trivia game, not affiliated with the NFL.</span>
-      <div class="flex flex-wrap items-center gap-4">
-        <a href="/how-to-play" class="hover:text-white underline">How to Play</a>
-        <a href="/records" class="hover:text-white underline">All-Time Records</a>
-        <a href="/about" class="hover:text-white underline">About</a>
-        <a href="/privacy" class="hover:text-white underline">Privacy Policy</a>
-        <a href="/terms" class="hover:text-white underline">Terms</a>
-        <a href="/ads.txt" class="hover:text-white underline">ads.txt</a>
+    <footer class="pt-4 border-t border-[#263248] flex flex-wrap items-center justify-between gap-2 pb-4 text-[11px] text-[#94a3b8]">
+      <span>© KNOW BALL (<a href="${SITE_ORIGIN}" class="hover:text-[#f1f5f9] underline">knowball.app</a>) · Independent fantasy football trivia game, not affiliated with the NFL.</span>
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="/how-to-play" class="hover:text-[#f1f5f9] underline">How to Play</a>
+        <a href="/records" class="hover:text-[#f1f5f9] underline">All-Time Records</a>
+        <a href="/about" class="hover:text-[#f1f5f9] underline">About</a>
+        <a href="/privacy" class="hover:text-[#f1f5f9] underline">Privacy Policy</a>
+        <a href="/terms" class="hover:text-[#f1f5f9] underline">Terms</a>
+        <a href="/ads.txt" class="hover:text-[#f1f5f9] underline">ads.txt</a>
       </div>
-    </div>
-  </footer>
+    </footer>
+  </div>
 </body>
 </html>`;
 }
