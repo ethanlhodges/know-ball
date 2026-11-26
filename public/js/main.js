@@ -498,7 +498,7 @@ function renderSideBySidePicks(opponent, mySim) {
     return `
       <div class="py-2.5 grid grid-cols-1 sm:grid-cols-[120px_1fr_1fr] items-center gap-2">
         <div class="flex items-center gap-1.5 min-w-0">
-          <span class="px-1.5 py-0.5 rounded text-[10px] font-black text-white shrink-0" style="background:${team.color}">${team.id}</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0" style="background:${team.bg};color:${team.fg}">${team.id}</span>
           <span class="text-[11px] font-bold text-[var(--muted-foreground)] tabular truncate">${era}</span>
           ${isSame ? '<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black shrink-0">SAME</span>' : ''}
         </div>

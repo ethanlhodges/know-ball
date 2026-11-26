@@ -15,6 +15,7 @@ const {
   attachIdentity,
   rateLimit,
 } = require('./auth');
+const { createEditorialPages } = require('./pages');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -676,45 +677,45 @@ app.get('/ads.txt', (_req, res) => {
   res.send(`google.com, ${pubId}, DIRECT, f08c47fec0942fa0\n`);
 });
 
+const editorial = createEditorialPages({
+  playersRaw: PLAYERS_RAW,
+  buildGaSnippet,
+  buildAdsenseHead,
+});
+
+app.get('/how-to-play', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(editorial.howToPlayHtml());
+});
+
+app.get('/records', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(editorial.recordsHtml());
+});
+
+app.get('/about', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(editorial.aboutHtml());
+});
+
+app.get('/terms', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(editorial.termsHtml());
+});
+
 app.get('/privacy', (_req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Privacy Policy — KNOW BALL</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-[#0b0f17] text-slate-100 antialiased min-h-screen">
-  <main class="max-w-2xl mx-auto px-5 py-10 space-y-6 text-sm text-slate-300 leading-relaxed">
-    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-      <div class="flex items-center gap-2.5">
-        <a href="/" class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-sm">KNOW BALL</a>
-        <h1 class="text-lg font-black text-white">Privacy Policy</h1>
-      </div>
-      <a href="/" class="text-xs font-bold text-sky-400 hover:underline">← Back to Game</a>
-    </div>
-    <p class="text-xs text-slate-400">Effective Date: November 24, 2026 · Domain: knowball.app</p>
-    <section class="space-y-2">
-      <h2 class="text-base font-bold text-white">1. Information We Collect</h2>
-      <p>KNOW BALL can be played completely without an account. We use an anonymous <code>HttpOnly</code> browser cookie to save your completed drafts, Daily Challenge streaks, and Hall of Fame locally on our server. If you optionally create an account, we store your chosen username, email address, and a salted <code>scrypt</code> hash of your password (we never store plaintext passwords). Emails are never displayed publicly.</p>
-    </section>
-    <section class="space-y-2">
-      <h2 class="text-base font-bold text-white">2. Analytics &amp; Advertising</h2>
-      <p>We use Google Analytics 4 to understand aggregate site traffic and gameplay trends. We may also display advertisements through Google AdSense. Third-party vendors, including Google, use cookies to serve ads based on a user's prior visits to this website or other websites. You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" class="text-sky-400 underline" target="_blank" rel="noopener">Google Ads Settings</a> or <a href="https://www.aboutads.info/choices/" class="text-sky-400 underline" target="_blank" rel="noopener">aboutads.info</a>.</p>
-    </section>
-    <section class="space-y-2">
-      <h2 class="text-base font-bold text-white">3. Public Leaderboards &amp; Shared Links</h2>
-      <p>Completed Daily Challenge runs may appear on the public Daily Leaderboard alongside your username (or "Guest" if playing anonymously). Shareable result links (<code>/r/...</code>) and 1v1 challenge links (<code>/c/...</code>) are publicly viewable by anyone with the link.</p>
-    </section>
-    <section class="space-y-2">
-      <h2 class="text-base font-bold text-white">4. Disclaimer</h2>
-      <p>KNOW BALL (knowball.app) is an independent fantasy football trivia game and is not affiliated with, endorsed by, or sponsored by the National Football League (NFL) or any of its teams.</p>
-    </section>
-  </main>
-</body>
-</html>`);
+  res.send(editorial.privacyHtml());
+});
+
+app.get('/robots.txt', (_req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(editorial.robotsTxt());
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.send(editorial.sitemapXml());
 });
 
 app.get('/', (_req, res) => {
