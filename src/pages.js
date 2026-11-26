@@ -60,7 +60,7 @@ function renderLayout({ title, description, canonicalPath, activeNav = '', bodyH
   const navLinks = [
     { href: '/', label: 'Play', key: 'play' },
     { href: '/how-to-play', label: 'How to Play', key: 'how-to-play' },
-    { href: '/records', label: 'Records', key: 'records' },
+    { href: '/records', label: 'All-Time Records', key: 'records' },
     { href: '/about', label: 'About', key: 'about' },
   ];
   return `<!DOCTYPE html>
@@ -81,7 +81,7 @@ function renderLayout({ title, description, canonicalPath, activeNav = '', bodyH
   <style>.tabular { font-variant-numeric: tabular-nums; }</style>
 </head>
 <body class="bg-[#0b0f17] text-[#f1f5f9] antialiased min-h-screen">
-  <div class="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-6">
+  <div class="max-w-4xl mx-auto px-3 sm:px-5 py-4 space-y-4">
 
     <!-- Broadcast Header (matches homepage) -->
     <header class="flex flex-wrap items-center justify-between gap-2.5">
@@ -95,14 +95,17 @@ function renderLayout({ title, description, canonicalPath, activeNav = '', bodyH
         </div>
       </a>
 
-      <nav class="flex flex-wrap items-center gap-1.5">
-        <div class="inline-flex rounded-lg border border-[#263248] bg-[#131a26] p-0.5 text-xs">
-          ${navLinks.map(n => `
-            <a href="${n.href}" class="px-2.5 py-1 rounded-md font-bold transition ${activeNav === n.key ? 'bg-emerald-600 text-white' : 'text-[#94a3b8] hover:text-[#f1f5f9]'}">${n.label}</a>
-          `).join('')}
-        </div>
-      </nav>
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">
+        🏈 Play Today’s Draft
+      </a>
     </header>
+
+    <!-- Site Navigation (matches homepage) -->
+    <nav class="flex flex-wrap items-center gap-1 border-b border-[#263248] pb-2.5 text-xs font-bold">
+      ${navLinks.map(n => `
+        <a href="${n.href}" class="px-2.5 py-1 rounded-md transition ${activeNav === n.key ? 'bg-emerald-600 text-white' : 'text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#131a26]'}">${n.label}</a>
+      `).join('')}
+    </nav>
 
     <main class="space-y-6 text-sm text-slate-300 leading-relaxed pt-2">
       ${bodyHtml}
